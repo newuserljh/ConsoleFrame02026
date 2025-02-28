@@ -11,7 +11,6 @@
 #include "../luajit/src/lua.hpp"
 #include "../Common/shareMemoryCli.h"
 #include "LuaBridge/LuaBridge.h"
-#include "scriptManager.h"
 
 
 // 声明外部对象 
@@ -61,22 +60,16 @@ struct NPCHash {
 class lua_interface
 {
 public:
-	lua_interface() : L(luaL_newstate(), lua_close)
+	lua_interface() : L(luaL_newstate(), &lua_close)
 	{
 		if (L) {
 			luaL_openlibs(L.get());
-
-			// 替换 Lua 的 print 函数
-			lua_pushcfunction(L.get(), &lua_interface::lua_print);
-			lua_setglobal(L.get(), "print");
-			registerClasses();
 		} 
 	}
 	~lua_interface() = default;
 
-	// 重定向 Lua 的 print 函数
 	static int lua_print(lua_State* L);
-	void registerClasses(); //注册类到 Lua 中
+	void registerClasses(lua_State* L); //注册类到 Lua 中
 	lua_State* getLuaState() const { return L.get(); }
 	// 禁用拷贝构造函数和赋值操作符
 	lua_interface(const lua_interface&) = delete;
@@ -112,9 +105,12 @@ public:
 	bool sellJewelry() { return sellJewelry(r_bag.index_vec_sell_jewel); }//卖首饰
 	bool sellWeapon() { return sellWeapon(r_bag.index_vec_sell_weapon); }//卖武器
 	bool buyMedicine(const std::string& med_name, BYTE num);//买药
+	int getCurrentHP() { return 100 * *r.m_roleproperty.Object.HP / *r.m_roleproperty.Object.HP_MAX; }//获取当前血量百分比
+	int getCurrentMP() { return 100 * *r.m_roleproperty.Object.MP / *r.m_roleproperty.Object.MP_MAX; }// 获取当前蓝量百分比
 	int getCurrentX() { return *r.m_roleproperty.Object.X; }//获取当前坐标X
 	int getCurrentY() { return *r.m_roleproperty.Object.Y; }// 获取当前坐标Y
 	std::string getCurrentMapName() { return r.m_roleproperty.p_Current_Map; }//获取当前地图名称
+	int getBagSpaceMax(){return *r.m_roleproperty.Bag_Size;} //获取背包最大格子数量
 	int getBagSpace() { return r_bag.getBagSpace(); }//获取背包剩余格子数量
 	int getBagWeightRemain() { return *r.m_roleproperty.BAG_W; }//获取背包已使用负重
 	int getBagWeightMax() { return *r.m_roleproperty.BAG_W_MAX; }//获取背包最大负重

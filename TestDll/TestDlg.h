@@ -18,9 +18,7 @@ public:
 // 对话框数据
 	enum { IDD = IDD_DLGTEST };
 
-public:
-	lua_State* L; // Lua 状态变量 用于主程序
-	
+
 
 private:
 	std::atomic<bool> luaStopFlag{ false };

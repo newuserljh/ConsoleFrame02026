@@ -53,6 +53,9 @@
     <ClInclude Include="lua_interface.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="scriptManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="TestDll.def">

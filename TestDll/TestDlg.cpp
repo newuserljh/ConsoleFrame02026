@@ -17,7 +17,7 @@
 #include "../GameData/config.h"
 #pragma comment(lib , "Common.lib")
 #pragma comment(lib ,"GameData.lib")
-
+#include "scriptManager.h"
 //#include "HookAPI.h"
 #include "../Common/HookReg.h"
 // CTestDlg 对话框
@@ -70,7 +70,7 @@ CTestDlg::CTestDlg(CWnd* pParent /*=NULL*/)
 
 CTestDlg::~CTestDlg()
 {
-	lua_close(L);
+
 }
 
 void CTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -191,8 +191,8 @@ void AppendText(CEdit &m_edit, CString strAdd)
 BOOL CTestDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-	m_luaInterface.registerClasses();// 初始化 lua接口对象
-	L = m_luaInterface.getLuaState(); //初始化Lua状态
+	//m_luaInterface.registerClasses();// 初始化 lua接口对象
+	//L = m_luaInterface.getLuaState(); //初始化Lua状态
 
 	//初始化 线程标志
 	tflag_attack = true;
@@ -209,8 +209,8 @@ BOOL CTestDlg::OnInitDialog()
 	shareindex = shareCli.getIndexByPID(GetCurrentProcessId());
 
 	//载入地图数据到内存
-	std::string input_file = (std::string)shareCli.m_pSMAllData->currDir + "map\\map_data.lua";
-	m_luaInterface.load_and_store_map_data(L, input_file);
+	//std::string input_file = (std::string)shareCli.m_pSMAllData->currDir + "map\\map_data.lua";
+	//m_luaInterface.load_and_store_map_data(L, input_file);
 
 	std::string cfgtpath = (std::string)shareCli.m_pSMAllData->currDir + "cfg";
 	CreateDirectory(cfgtpath.c_str(), NULL);// 创建 cfg 文件夹（如果不存在）
@@ -1127,7 +1127,7 @@ void CTestDlg::OnBnClickedButton9()
 	//m_team.team_Base = r.m_roleproperty.Team_pointer;
 	//CString s;
 
-	m_luaInterface.getGoodsProcessIndex();
+	//m_luaInterface.getGoodsProcessIndex();
 	//std::cout<<m_luaInterface.getStoreGoodsNumber()<<std::endl;
 	//std::cout << m_luaInterface.getSellClothesNumber() << std::endl;
 	//std::cout << m_luaInterface.getSellJewelryNumber() << std::endl;
@@ -1411,54 +1411,85 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 //lua脚本测试
 void CTestDlg::OnBnClickedBtnLuatst()
 {
-	if (!L) {
-		std::cerr << "Failed to create Lua state" << std::endl;
-		return;
-	}
+	scriptManager mgr(&m_luaInterface);
+	std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\3.lua";
+	// 启动脚本（假设用户脚本为script.lua）
+	mgr.start(scriptPath);
 
-   // 定义错误回调函数
-	auto errorCallback = [](const std::string& errorMessage) {
-		std::cerr << "Error in Lua script: " << errorMessage << std::endl;
-		};
 
-	luaStopFlag.store(false);//重置停止标志
 
-	// 在 Lua 状态中设置全局变量 stopScript
-	lua_pushboolean(L, luaStopFlag.load());
-	lua_setglobal(L, "luaStopFlag");
+	//std::string script = R"(
+ //       -- 初始代码段
+ //       hp = 100
+ //       mp = 30
+ //       while true do
+ //           print("HP:", hp, "MP:", mp)
+ //           hp = hp - 1
+ //           mp = mp - 1
+ //       end
+ //       触发器：if hp < 50 and mp < 10 goto low_resources
+ //       ::low_resources::
+ //       print("警告：资源不足！")
+ //       触发器：if hp < 10 goto critical
+ //       ::critical::
+ //       while true do
+	//		print("危险：生命值极低！");
+	//	end
+ //   )";
 
-	// 在 Lua 状态中设置全局变量 currentDir
-	std::string s = (std::string)shareCli.m_pSMAllData->currDir;
-	s.pop_back();
-	lua_pushstring(L, s.c_str());
-	lua_setglobal(L, "currentDir");
+	//mgr.loadScript(script);
+	//mgr.printLabelCodeMap();
+	//mgr.execute();
 
-	//初始化lua的设置
-	std::string initPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init.lua";
-	if (luaL_loadfile(L, initPath.c_str()) || lua_pcall(L, 0, 0, 0)) {
-		std::cerr << "Failed to load and run script: " << lua_tostring(L, -1) << std::endl;
-		lua_pop(L, 1); // 清除错误消息
-		return;
-	}
-	/*std::cout << "初始化Lua环境成功！" << std::endl;*/
-	//std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\test.lua";
-		// 使用 lambda 表达式调用成员函数
-	std::thread scriptThread([this, initPath, errorCallback]() {this->RunLuaScriptInThread(LPVOID(this), L, initPath, errorCallback); });
-	scriptThread.detach();  // 分离线程，使其独立运行
-	// 主线程可以继续执行其他任务
-	GetDlgItem(IDC_BTN_LUATST)->EnableWindow(FALSE); // 禁用按钮并设置为灰色
+
+	//if (!L) {
+	//	std::cerr << "Failed to create Lua state" << std::endl;
+	//	return;
+	//}
+
+ //  // 定义错误回调函数
+	//auto errorCallback = [](const std::string& errorMessage) {
+	//	std::cerr << "Error in Lua script: " << errorMessage << std::endl;
+	//	};
+
+	//luaStopFlag.store(false);//重置停止标志
+
+	//// 在 Lua 状态中设置全局变量 stopScript
+	//lua_pushboolean(L, luaStopFlag.load());
+	//lua_setglobal(L, "luaStopFlag");
+
+	//// 在 Lua 状态中设置全局变量 currentDir
+	//std::string s = (std::string)shareCli.m_pSMAllData->currDir;
+	//s.pop_back();
+	//lua_pushstring(L, s.c_str());
+	//lua_setglobal(L, "currentDir");
+
+	////初始化lua的设置
+	//std::string initPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init.lua";
+	//if (luaL_loadfile(L, initPath.c_str()) || lua_pcall(L, 0, 0, 0)) {
+	//	std::cerr << "Failed to load and run script: " << lua_tostring(L, -1) << std::endl;
+	//	lua_pop(L, 1); // 清除错误消息
+	//	return;
+	//}
+	///*std::cout << "初始化Lua环境成功！" << std::endl;*/
+	////std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\test.lua";
+	//	// 使用 lambda 表达式调用成员函数
+	//std::thread scriptThread([this, initPath, errorCallback]() {this->RunLuaScriptInThread(LPVOID(this), L, initPath, errorCallback); });
+	//scriptThread.detach();  // 分离线程，使其独立运行
+	//// 主线程可以继续执行其他任务
+	//GetDlgItem(IDC_BTN_LUATST)->EnableWindow(FALSE); // 禁用按钮并设置为灰色
 }
 
 //停止lua脚本
 void CTestDlg::OnBnClickedButton6()
 {
 	// 设置停止标志
-	luaStopFlag.store(true);
-	// 更新 Lua 状态中的全局变量 stopScript
-	if (L) {
-		lua_pushboolean(L, luaStopFlag.load());
-		lua_setglobal(L, "stopScript");
-	}
+	//luaStopFlag.store(true);
+	//// 更新 Lua 状态中的全局变量 stopScript
+	//if (L) {
+	//	lua_pushboolean(L, luaStopFlag.load());
+	//	lua_setglobal(L, "stopScript");
+	//}
 
 }
 

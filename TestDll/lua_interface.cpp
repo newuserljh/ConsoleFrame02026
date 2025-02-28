@@ -3,12 +3,12 @@
 #include "TestDlg.h"
 
 
-void lua_interface::registerClasses()
+void lua_interface::registerClasses(lua_State* L)
 {
 	using namespace luabridge;
 
 	// 类导出到lua
-	getGlobalNamespace(L.get())
+	getGlobalNamespace(L)
 		.beginClass<bag>("bag") //bag类
 		.addConstructor<void(*)()>()
 		.addFunction("init", &bag::init)
@@ -80,9 +80,12 @@ void lua_interface::registerClasses()
 		.addFunction("当前坐标Y", &lua_interface::getCurrentY)
 		.addFunction("当前地图名", &lua_interface::getCurrentMapName)
 		.addFunction("背包剩余格子", &lua_interface::getBagSpace)
+		.addFunction("最大背包格子", &lua_interface::getBagSpaceMax)
 		.addFunction("当前背包负重", &lua_interface::getBagWeightRemain)
 		.addFunction("最大背包负重", &lua_interface::getBagWeightMax)
 		.addFunction("计算物品数量", &lua_interface::getBagGoodsNumber)
+		.addFunction("当前血量", &lua_interface::getCurrentHP)
+		.addFunction("当前蓝量", &lua_interface::getCurrentMP)
 		.addFunction("红药数量", &lua_interface::getBagHpMedcine)
 		.addFunction("蓝药数量", &lua_interface::getBagMpMedcine)
 		.addFunction("当前金币", &lua_interface::getGoldNumber)
