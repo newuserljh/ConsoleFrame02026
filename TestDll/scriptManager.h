@@ -259,23 +259,22 @@ public:
 			initializeLuaState();
 		}
 		std::thread([this, action]() {
-			std::lock_guard<std::mutex> lock(luaMutex);
 			// 执行 Lua 代码
-			lua_getglobal(threadLua.get(), action.c_str());
-			if (lua_isfunction(threadLua.get(), -1)) {
-				if (lua_pcall(threadLua.get(), 0, 0, 0) != LUA_OK) {
-					std::cerr << "执行错误: " << lua_tostring(threadLua.get(), -1) << std::endl;
-					lua_pop(threadLua.get(), 1);
+			lua_getglobal(threadLua, action.c_str());
+			if (lua_isfunction(threadLua, -1)) {
+				if (lua_pcall(threadLua, 0, 0, 0) != LUA_OK) {
+					std::cerr << "执行错误: " << lua_tostring(threadLua, -1) << std::endl;
+					lua_pop(threadLua, 1);
 				}
 			}
 			else {
-				lua_pop(threadLua.get(), 1);
+				lua_pop(threadLua, 1);
 				// 尝试直接跳转（需要预编译跳转逻辑）
 				std::string code = "goto " + action;
-				if (luaL_loadbuffer(threadLua.get(), code.c_str(), code.size(), "jumptag") ||
-					lua_pcall(threadLua.get(), 0, 0, 0)) {
+				if (luaL_loadbuffer(threadLua, code.c_str(), code.size(), "jumptag") ||
+					lua_pcall(threadLua, 0, 0, 0)) {
 					std::cerr << "无效标签: " << action << std::endl;
-					lua_pop(threadLua.get(), 1);
+					lua_pop(threadLua, 1);
 				}
 			}
 			}).detach();
@@ -407,51 +406,43 @@ public:
 
 	private:   
 		// 静态成员变量，使用 thread_local 修饰
-		static thread_local std::unique_ptr<lua_State> threadLua;
+	     static thread_local lua_State* threadLua;
 
 		// 静态初始化函数
-		static void initializeLuaState() {
-			threadLua = std::make_unique<lua_State>(luaL_newstate());
-			luaL_openlibs(threadLua.get());
+		void initializeLuaState() {
+			threadLua = luaL_newstate();
+			luaL_openlibs(threadLua);
 			// 其他初始化操作
-			//cloneMainStateToThread();
+			cloneMainStateToThread();
 		}
 
-		// 静态析构函数
-	 void finalizeLuaState() {
-			if (threadLua) {
-				lua_close(threadLua.get());
-				threadLua.release();
-				cloneMainStateToThread();
 
-			}
-		}
 		// 从主状态复制全局环境到当前线程的 Lua 状态
 		void cloneMainStateToThread() {
 			std::lock_guard<std::mutex> lock(luaMutex);
 			lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY);
-			copyTable(L, threadLua.get()); // 递归复制表内容
+			copyTable(L, threadLua); // 递归复制表内容
 			lua_pop(L, 1); // 弹出主状态全局表
-			lua_newtable(threadLua.get()); // 创建元表
-			lua_pushcfunction(threadLua.get(), &scriptManager::lua_index_handler);
-			lua_setfield(threadLua.get(), -2, "__index");
-			lua_setmetatable(threadLua.get(), LUA_GLOBALSINDEX);
+			lua_newtable(threadLua); // 创建元表
+			lua_pushcfunction(threadLua, &scriptManager::lua_index_handler);
+			lua_setfield(threadLua, -2, "__index");
+			lua_setmetatable(threadLua, LUA_GLOBALSINDEX);
 			// 替换 Lua 的 print 函数
-			lua_pushcfunction(threadLua.get(), &lua_interface::lua_print);
-			lua_setglobal(threadLua.get(), "print");
+			lua_pushcfunction(threadLua, &lua_interface::lua_print);
+			lua_setglobal(threadLua, "print");
 			// 在 initLuaState 中添加
-			lua_pushcfunction(threadLua.get(), [](lua_State* L) {
-				int ms = luaL_checkinteger(threadLua.get(), 1);
+			lua_pushcfunction(threadLua, [](lua_State* L) {
+				int ms = luaL_checkinteger(threadLua, 1);
 				std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 				return 0;
 				});
-			lua_setglobal(threadLua.get(), "sleep");
+			lua_setglobal(threadLua, "sleep");
 
-			game->registerClasses(threadLua.get());
+			game->registerClasses(threadLua);
 			auto_register_game_vars();
 			start_trigger_monitor();
 
-			luabridge::getGlobalNamespace(threadLua.get())
+			luabridge::getGlobalNamespace(threadLua)
 				.beginClass<scriptManager>("scriptManager")
 				.addFunction("add_trigger", &scriptManager::add_trigger)
 				.addFunction("execute_action", &scriptManager::execute_action)
@@ -460,8 +451,8 @@ public:
 				.addFunction("request_stop", &scriptManager::request_stop)
 				.addFunction("clear_triggers", &scriptManager::clear_triggers)
 				.endClass();
-			luabridge::setGlobal(threadLua.get(), game, "game");
-			luabridge::setGlobal(threadLua.get(), this, "scriptMgr");
+			luabridge::setGlobal(threadLua, game, "game");
+			luabridge::setGlobal(threadLua, this, "scriptMgr");
 
 		}
 
@@ -513,5 +504,5 @@ public:
 			}
 		}
 };
-
+thread_local lua_State* scriptManager::threadLua = nullptr;
 const char* scriptManager::REGISTRY_KEY = "SCRIPT_MANAGER_PTR";
