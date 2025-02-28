@@ -90,20 +90,21 @@ private:
 	lua_State* L;
 	lua_interface* game;
 	static const char* REGISTRY_KEY;
-	bool running = false;
 	const int CACHE_TTL = 100; // 100ms缓存有效期
 
 	std::mutex luaMutex;  // Lua 状态操作互斥锁
 
-
+	std::atomic<bool> running{ false };  // 使用原子操作
+	std::thread monitorThread;         // 单独记录监控线程
 	// 启动触发器监控线程
 	void start_trigger_monitor() {
-		std::thread([this]() {
+		running = true;
+		monitorThread = std::thread([this]() {
 			while (running) {
 				check_triggers();
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			}
-			}).detach();
+			});
 	}
 	// 解析条件字符串
 	std::shared_ptr<Condition> parse_condition(const std::string& condStr) {
@@ -151,8 +152,8 @@ private:
 
 	// 定期检查所有触发器
 	void check_triggers() {
-		std::lock_guard<std::mutex> lock(triggerMutex);
-
+		// 先获取 luaMutex，再获取 triggerMutex
+		std::lock_guard<std::mutex> trigger_lock(triggerMutex);
 		for (const auto& trigger : triggers) {
 			if (trigger.condition->evaluate(this)) {
 				execute_action(trigger.action);
@@ -175,18 +176,24 @@ public:
 			.addFunction("execute_action", &scriptManager::execute_action)
 			.addFunction("reload_script", &scriptManager::reload_script)
 			.addFunction("stop_all_triggers", &scriptManager::stop_all_triggers)
-
+			.addFunction("request_stop",&scriptManager::request_stop)
+			.addFunction("clear_triggers",&scriptManager::clear_triggers)
 			.endClass();
 		// 将game接口暴露到Lua全局
 		luabridge::setGlobal(L, game, "game");
 
 		// 暴露管理器自身到 Lua
 		luabridge::setGlobal(L, this, "scriptMgr");
+
 	}
 
 	~scriptManager() {
-		stop_all_triggers();
-		lua_close(L);
+		stop_all_triggers();  // 先停止线程
+		{
+			std::lock_guard<std::mutex> lock(triggerMutex);
+			triggers.clear();
+		}
+		lua_close(L);  // 最后关闭 Lua 状态
 	}
 
 	// 条件解析方法
@@ -204,7 +211,11 @@ public:
 			triggers.end());
 	}
 
-
+	// 定期检查所有触发器
+	void clear_triggers() {
+		//std::lock_guard<std::mutex> lock(triggerMutex);
+		triggers.clear();
+	}
 	// 注册数值型变量（带缓存）
 	void register_cache_var(const std::string& name, std::function<int()> getter) {
 		std::unique_lock<std::shared_mutex> lock(varMutex);
@@ -242,24 +253,25 @@ public:
 
  // 执行 Lua 动作（标签或函数）
 	void execute_action(const std::string& action) {
-		std::lock_guard<std::mutex> lock(luaMutex);
-
 		// 尝试作为标签处理
-		lua_getglobal(L, action.c_str());
-		if (lua_isfunction(L, -1)) {
-			if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-				std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
-				lua_pop(L, 1);
+		{
+			std::lock_guard<std::mutex> lock(luaMutex);
+			lua_getglobal(L, action.c_str());
+			if (lua_isfunction(L, -1)) {
+				if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+					std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
+					lua_pop(L, 1);
+				}
 			}
-		}
-		else {
-			lua_pop(L, 1);
-			// 尝试直接跳转（需要预编译跳转逻辑）
-			std::string code = "goto " + action;
-			if (luaL_loadbuffer(L, code.c_str(), code.size(), "jumptag") ||
-				lua_pcall(L, 0, 0, 0)) {
-				std::cerr << "无效标签: " << action << std::endl;
+			else {
 				lua_pop(L, 1);
+				// 尝试直接跳转（需要预编译跳转逻辑）
+				std::string code = "goto " + action;
+				if (luaL_loadbuffer(L, code.c_str(), code.size(), "jumptag") ||
+					lua_pcall(L, 0, 0, 0)) {
+					std::cerr << "无效标签: " << action << std::endl;
+					lua_pop(L, 1);
+				}
 			}
 		}
 	}
@@ -343,16 +355,23 @@ public:
 		// 替换 Lua 的 print 函数
 		lua_pushcfunction(L, &lua_interface::lua_print);
 		lua_setglobal(L, "print");
-
+		// 在 initLuaState 中添加
+		lua_pushcfunction(L, [](lua_State* L) {
+			int ms = luaL_checkinteger(L, 1);
+			std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+			return 0;
+			});
+		lua_setglobal(L, "sleep");
 	}
 
+
 	void start(const std::string& filepath) {  
-		std::cout << "开始执行脚本0: " << filepath << std::endl;
+
 		if (!tools::getInstance()->fileIsexist(filepath)) {
 			std::cout << "[错误] 文件不存在: " << filepath << std::endl;
 			return;
 		}
-		std::cout << "开始执行脚本1: " << filepath << std::endl;
+
 		running = true;
 		std::lock_guard<std::mutex> lock(luaMutex);
 		if (luaL_loadfile(L, filepath.c_str()) != LUA_OK) {
@@ -366,21 +385,20 @@ public:
 		}
 	}
 
+	void request_stop() {
+		std::thread([this]() {
+			stop_all_triggers();
+			}).detach();
+	}
 	void stop_all_triggers() {
 		running = false;
-		for (auto& entry : triggerThreads) {
-			if (entry.second.joinable()) {
-				entry.second.join();
-			}
+		if (monitorThread.joinable()) {
+			monitorThread.join();
 		}
-		triggerThreads.clear();
+		// 清理其他线程（如果有）
+
 	}
 
-private:
-	std::unordered_map<std::string, std::thread> triggerThreads;
-
-	// 其他辅助方法（如条件解析、触发检测等）
-	// ...
 };
 
 const char* scriptManager::REGISTRY_KEY = "SCRIPT_MANAGER_PTR";

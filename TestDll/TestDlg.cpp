@@ -1416,6 +1416,7 @@ void CTestDlg::OnBnClickedBtnLuatst()
 	// 启动脚本（假设用户脚本为script.lua）
 	mgr.start(scriptPath);
 
+	
 
 
 	//std::string script = R"(
