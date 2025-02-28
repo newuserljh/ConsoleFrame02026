@@ -251,29 +251,34 @@ public:
 		register_string_var("当前地图", [this]() { return game->getCurrentMapName(); });
 	}
 
+
  // 执行 Lua 动作（标签或函数）
 	void execute_action(const std::string& action) {
-		// 尝试作为标签处理
-		{
+		// 初始化当前线程的 Lua 状态
+		if (!threadLua) {
+			initializeLuaState();
+		}
+		std::thread([this, action]() {
 			std::lock_guard<std::mutex> lock(luaMutex);
-			lua_getglobal(L, action.c_str());
-			if (lua_isfunction(L, -1)) {
-				if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-					std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
-					lua_pop(L, 1);
+			// 执行 Lua 代码
+			lua_getglobal(threadLua.get(), action.c_str());
+			if (lua_isfunction(threadLua.get(), -1)) {
+				if (lua_pcall(threadLua.get(), 0, 0, 0) != LUA_OK) {
+					std::cerr << "执行错误: " << lua_tostring(threadLua.get(), -1) << std::endl;
+					lua_pop(threadLua.get(), 1);
 				}
 			}
 			else {
-				lua_pop(L, 1);
+				lua_pop(threadLua.get(), 1);
 				// 尝试直接跳转（需要预编译跳转逻辑）
 				std::string code = "goto " + action;
-				if (luaL_loadbuffer(L, code.c_str(), code.size(), "jumptag") ||
-					lua_pcall(L, 0, 0, 0)) {
+				if (luaL_loadbuffer(threadLua.get(), code.c_str(), code.size(), "jumptag") ||
+					lua_pcall(threadLua.get(), 0, 0, 0)) {
 					std::cerr << "无效标签: " << action << std::endl;
-					lua_pop(L, 1);
+					lua_pop(threadLua.get(), 1);
 				}
 			}
-		}
+			}).detach();
 	}
 
 	//允许运行时重新加载脚本而不中断已有触发器：
@@ -399,6 +404,114 @@ public:
 
 	}
 
+
+	private:   
+		// 静态成员变量，使用 thread_local 修饰
+		static thread_local std::unique_ptr<lua_State> threadLua;
+
+		// 静态初始化函数
+		static void initializeLuaState() {
+			threadLua = std::make_unique<lua_State>(luaL_newstate());
+			luaL_openlibs(threadLua.get());
+			// 其他初始化操作
+			//cloneMainStateToThread();
+		}
+
+		// 静态析构函数
+	 void finalizeLuaState() {
+			if (threadLua) {
+				lua_close(threadLua.get());
+				threadLua.release();
+				cloneMainStateToThread();
+
+			}
+		}
+		// 从主状态复制全局环境到当前线程的 Lua 状态
+		void cloneMainStateToThread() {
+			std::lock_guard<std::mutex> lock(luaMutex);
+			lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY);
+			copyTable(L, threadLua.get()); // 递归复制表内容
+			lua_pop(L, 1); // 弹出主状态全局表
+			lua_newtable(threadLua.get()); // 创建元表
+			lua_pushcfunction(threadLua.get(), &scriptManager::lua_index_handler);
+			lua_setfield(threadLua.get(), -2, "__index");
+			lua_setmetatable(threadLua.get(), LUA_GLOBALSINDEX);
+			// 替换 Lua 的 print 函数
+			lua_pushcfunction(threadLua.get(), &lua_interface::lua_print);
+			lua_setglobal(threadLua.get(), "print");
+			// 在 initLuaState 中添加
+			lua_pushcfunction(threadLua.get(), [](lua_State* L) {
+				int ms = luaL_checkinteger(threadLua.get(), 1);
+				std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+				return 0;
+				});
+			lua_setglobal(threadLua.get(), "sleep");
+
+			game->registerClasses(threadLua.get());
+			auto_register_game_vars();
+			start_trigger_monitor();
+
+			luabridge::getGlobalNamespace(threadLua.get())
+				.beginClass<scriptManager>("scriptManager")
+				.addFunction("add_trigger", &scriptManager::add_trigger)
+				.addFunction("execute_action", &scriptManager::execute_action)
+				.addFunction("reload_script", &scriptManager::reload_script)
+				.addFunction("stop_all_triggers", &scriptManager::stop_all_triggers)
+				.addFunction("request_stop", &scriptManager::request_stop)
+				.addFunction("clear_triggers", &scriptManager::clear_triggers)
+				.endClass();
+			luabridge::setGlobal(threadLua.get(), game, "game");
+			luabridge::setGlobal(threadLua.get(), this, "scriptMgr");
+
+		}
+
+		// 递归复制表（深拷贝）
+		static void copyTable(lua_State* src, lua_State* dest) {
+			lua_pushnil(src);
+			while (lua_next(src, -2) != 0) {
+				// 复制键
+				lua_pushvalue(src, -2);
+				copyValue(src, dest);
+
+				// 复制值
+				copyValue(src, dest);
+
+				// 设置到目标表
+				lua_rawset(dest, -3);
+
+				lua_pop(src, 1);
+			}
+		}
+
+		// 复制 Lua 值（支持基础类型和表）
+		static void copyValue(lua_State* src, lua_State* dest) {
+			int type = lua_type(src, -1);
+			switch (type) {
+			case LUA_TNIL:
+				lua_pushnil(dest);
+				break;
+			case LUA_TBOOLEAN:
+				lua_pushboolean(dest, lua_toboolean(src, -1));
+				break;
+			case LUA_TNUMBER:
+				lua_pushnumber(dest, lua_tonumber(src, -1));
+				break;
+			case LUA_TSTRING: {
+				size_t len;
+				const char* str = lua_tolstring(src, -1, &len);
+				lua_pushlstring(dest, str, len);
+				break;
+			}
+			case LUA_TTABLE:
+				lua_newtable(dest);
+				copyTable(src, dest); // 递归复制子表
+				break;
+			default:
+				// 其他类型（如函数、userdata）需要特殊处理
+				lua_pushnil(dest);
+				break;
+			}
+		}
 };
 
 const char* scriptManager::REGISTRY_KEY = "SCRIPT_MANAGER_PTR";
