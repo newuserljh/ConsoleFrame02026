@@ -153,10 +153,13 @@ private:
 
 	// 定期检查所有触发器
 	void check_triggers() {
-		// 先获取 luaMutex，再获取 triggerMutex
 		std::lock_guard<std::mutex> trigger_lock(triggerMutex);
 		for (const auto& trigger : triggers) {
-			if (trigger.condition->evaluate(this)) {
+			bool result = trigger.condition->evaluate(this);
+			std::cout << "[DEBUG] 检查触发器: 条件=" << trigger.condition
+				<< ", 结果=" << result << std::endl;
+			if (result) {
+				std::cout << "[TRIGGER] 条件满足，触发动作: " << trigger.action << std::endl;
 				execute_action(trigger.action);
 			}
 		}
@@ -189,12 +192,18 @@ public:
 	}
 
 	~scriptManager() {
+		stop_script();
 		stop_all_triggers();  // 先停止线程
 		{
 			std::lock_guard<std::mutex> lock(triggerMutex);
 			triggers.clear();
 		}
-		lua_close(L);  // 最后关闭 Lua 状态
+		if (L) {
+			lua_close(L);
+		}
+		if (threadLua) {
+			lua_close(threadLua);
+		}
 	}
 
 	// 条件解析方法
@@ -214,7 +223,7 @@ public:
 
 	// 定期检查所有触发器
 	void clear_triggers() {
-		//std::lock_guard<std::mutex> lock(triggerMutex);
+		std::lock_guard<std::mutex> lock(triggerMutex);
 		triggers.clear();
 	}
 	// 注册数值型变量（带缓存）
@@ -265,6 +274,7 @@ public:
 					std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
 					lua_pop(L, 1);
 				}
+				lua_pop(localLua, 1); // 关键！移除协程对象
 			}
 			else {
 				lua_pop(L, 1);
@@ -391,6 +401,17 @@ public:
 		}
 	}
 
+	void stop_script() {
+		if (scriptRunning) {
+			scriptRunning = false;
+			if (mainScriptThread.joinable()) {
+				mainScriptThread.join();
+			}
+			std::cout << "[DEBUG] 主脚本已停止" << std::endl;
+		}
+	}
+
+
 	void request_stop() {
 		std::thread([this]() {
 			stop_all_triggers();
@@ -404,7 +425,9 @@ public:
 		// 清理其他线程（如果有）
 
 	}
-
+	private:
+		std::atomic<bool> scriptRunning{ false }; // 标记脚本是否正在运行
+		std::thread mainScriptThread;           // 主脚本执行线程
 
 	private:   
 		// 静态成员变量，使用 thread_local 修饰
