@@ -1412,7 +1412,7 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 void CTestDlg::OnBnClickedBtnLuatst()
 {
 	scriptManager mgr(&m_luaInterface);
-	std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\3.lua";
+	std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\1.lua";
 	// 启动脚本（假设用户脚本为script.lua）
 	mgr.start(scriptPath);
 

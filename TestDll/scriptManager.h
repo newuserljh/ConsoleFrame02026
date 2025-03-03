@@ -8,6 +8,7 @@
 
 class scriptManager {
 private:
+
 	// 条件表达式解析相关
 	struct Condition {
 		enum class Operator { LT, LE, GT, GE, EQ, NE };
@@ -97,15 +98,15 @@ private:
 	std::atomic<bool> running{ false };  // 使用原子操作
 	std::thread monitorThread;         // 单独记录监控线程
 	// 启动触发器监控线程
-	void start_trigger_monitor() {
-		running = true;
-		monitorThread = std::thread([this]() {
-			while (running) {
-				check_triggers();
-				std::this_thread::sleep_for(std::chrono::milliseconds(500));
-			}
-			});
-	}
+	//void start_trigger_monitor() {
+	//	running = true;
+	//	monitorThread = std::thread([this]() {
+	//		while (running) {
+	//			check_triggers();
+	//			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	//		}
+	//		});
+	//}
 	// 解析条件字符串
 	std::shared_ptr<Condition> parse_condition(const std::string& condStr) {
 		// 预处理：移除所有空格
@@ -168,7 +169,7 @@ public:
 		initLuaState();
 		game->registerClasses(L);
 		auto_register_game_vars();
-		start_trigger_monitor();
+		//start_trigger_monitor();
 		
 		luabridge::getGlobalNamespace(L)
 			.beginClass<scriptManager>("scriptManager")
@@ -255,29 +256,27 @@ public:
  // 执行 Lua 动作（标签或函数）
 	void execute_action(const std::string& action) {
 		// 初始化当前线程的 Lua 状态
-		if (!threadLua) {
-			initializeLuaState();
-		}
-		std::thread([this, action]() {
+		if (!L) {
 			// 执行 Lua 代码
-			lua_getglobal(threadLua, action.c_str());
-			if (lua_isfunction(threadLua, -1)) {
-				if (lua_pcall(threadLua, 0, 0, 0) != LUA_OK) {
-					std::cerr << "执行错误: " << lua_tostring(threadLua, -1) << std::endl;
-					lua_pop(threadLua, 1);
+			std::lock_guard<std::mutex> lock(luaMutex);
+			lua_getglobal(L, action.c_str());
+			if (lua_isfunction(L, -1)) {
+				if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+					std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
+					lua_pop(L, 1);
 				}
 			}
 			else {
-				lua_pop(threadLua, 1);
+				lua_pop(L, 1);
 				// 尝试直接跳转（需要预编译跳转逻辑）
 				std::string code = "goto " + action;
-				if (luaL_loadbuffer(threadLua, code.c_str(), code.size(), "jumptag") ||
-					lua_pcall(threadLua, 0, 0, 0)) {
+				if (luaL_loadbuffer(L, code.c_str(), code.size(), "jumptag") ||
+					lua_pcall(L, 0, 0, 0)) {
 					std::cerr << "无效标签: " << action << std::endl;
-					lua_pop(threadLua, 1);
+					lua_pop(L, 1);
 				}
 			}
-			}).detach();
+		}
 	}
 
 	//允许运行时重新加载脚本而不中断已有触发器：
@@ -363,11 +362,13 @@ public:
 		lua_pushcfunction(L, [](lua_State* L) {
 			int ms = luaL_checkinteger(L, 1);
 			std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+			//lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY);
+			//auto self= static_cast<scriptManager*>(lua_touserdata(L, lua_upvalueindex(1)));
+			//self->check_triggers();//再sleep加入检查触发器
 			return 0;
 			});
 		lua_setglobal(L, "sleep");
 	}
-
 
 	void start(const std::string& filepath) {  
 
@@ -378,6 +379,7 @@ public:
 
 		running = true;
 		std::lock_guard<std::mutex> lock(luaMutex);
+
 		if (luaL_loadfile(L, filepath.c_str()) != LUA_OK) {
 			std::cerr << "[错误] 脚本加载失败: " << lua_tostring(L, -1) << std::endl;
 			lua_pop(L, 1);
@@ -440,7 +442,6 @@ public:
 
 			game->registerClasses(threadLua);
 			auto_register_game_vars();
-			start_trigger_monitor();
 
 			luabridge::getGlobalNamespace(threadLua)
 				.beginClass<scriptManager>("scriptManager")

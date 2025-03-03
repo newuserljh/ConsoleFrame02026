@@ -1,60 +1,19 @@
 -- 全局跳转表，存储标签及其对应的 PC 值
-_G.__GOTO_TABLE__ = {}
+__GOTO_TABLE__ = {}
 
 -- 栈结构，用于处理嵌套块的标签
 __GOTO_STACK__ = {}
 
--- 工具函数：获取表格键列表
-function table.keys(t)
-    local keys = {}
-    for k in pairs(t) do table.insert(keys, k) end
-    return keys
-end
+-- 原始的 goto 函数
+local original_goto = _G.goto
 
--- 精准标签扫描器
-function scan_labels(code)  -- 确保参数存在性检查
-    if not code then
-        error("scan_labels: 缺少代码内容")
-    end
-
-    local labels = {}
-    local line_number = 1
-    for line in code:gmatch("([^\r\n]*)\r?\n?") do
-        local label = line:match("^%s*::%s*(.-)%s*::%s*$")
-        if label and label ~= "" then
-            labels[label] = line_number
-        end
-        line_number = line_number + 1
-    end
-    return labels
-end
-
--- 可靠跳转函数
+-- 自定义的 goto 函数
 function _G.goto(label)
-    local labels = _G.__GOTO_TABLE__
-
-    if not labels[label] then
-        error(string.format("标签 '%s' 不存在（可用标签: %s）",
-             label, table.concat(table.keys(labels), ", ")))
+    -- 查找标签在全局表中的 PC 值
+    local target_pc = __GOTO_TABLE__[label]
+    if not target_pc then
+        error(string.format("标签 '%s' 未定义", label), 2)
     end
-
-    local target_line = labels[label]
-    local current_line = debug.getinfo(2, "l").currentline or 0
-
-    if current_line >= target_line then
-        error(string.format("禁止向后跳转 (当前行:%d → 目标行:%d)",
-              current_line, target_line))
-    end
-
-    debug.sethook(function(event, line)
-        if event == "line" then
-            if line >= target_line then
-                debug.sethook()
-            end
-        end
-    end, "l")
-end
-
 
     -- 修改程序计数器以实现跳转
     debug.setlocal(1, 0, target_pc)
