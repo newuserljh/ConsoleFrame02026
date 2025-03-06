@@ -274,7 +274,7 @@ public:
 					std::cerr << "执行错误: " << lua_tostring(L, -1) << std::endl;
 					lua_pop(L, 1);
 				}
-				lua_pop(localLua, 1); // 关键！移除协程对象
+				lua_pop(L, 1); // 关键！移除协程对象
 			}
 			else {
 				lua_pop(L, 1);
