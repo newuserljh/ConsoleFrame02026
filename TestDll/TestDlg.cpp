@@ -23,6 +23,19 @@
 // CTestDlg 对话框
 
 
+std::unique_ptr<lua_interface> g_lua;
+std::unique_ptr<scriptManager> g_mgr;
+// 显式初始化函数
+void init_global_objects() {
+	g_lua = std::make_unique<lua_interface>();
+	g_mgr = std::make_unique<scriptManager>(g_lua.get());
+}
+
+// 显式销毁
+void cleanup_global_objects() {
+	g_mgr.reset();
+	g_lua.reset();
+}
 
 shareMemoryCli shareCli(MORE_OPEN_NUMBER);
 int shareindex = -1;
@@ -65,12 +78,12 @@ IMPLEMENT_DYNAMIC(CTestDlg, CDialogEx)
 CTestDlg::CTestDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CTestDlg::IDD, pParent)
 {
-
+	
 }
 
 CTestDlg::~CTestDlg()
 {
-
+	cleanup_global_objects();
 }
 
 void CTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -158,6 +171,10 @@ void threadLogin()
 		r_bag.maxSize = *r.m_roleproperty.Bag_Size;
 		r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
 		r_bag.init();
+		init_global_objects();
+		std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
+		// 启动脚本（假设用户脚本为script.lua）
+		g_mgr.get()->start(scriptPath);
 	}
 	return;
 }
@@ -191,10 +208,10 @@ void AppendText(CEdit &m_edit, CString strAdd)
 BOOL CTestDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-	//m_luaInterface.registerClasses();// 初始化 lua接口对象
-	//L = m_luaInterface.getLuaState(); //初始化Lua状态
 
-	//初始化 线程标志
+
+
+		//初始化 线程标志
 	tflag_attack = true;
 	tflag_goto = true;
 	tflag_pickup = true;
@@ -1411,13 +1428,28 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 //lua脚本测试
 void CTestDlg::OnBnClickedBtnLuatst()
 {
-	scriptManager mgr(&m_luaInterface);
-	std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\1.lua";
-	// 启动脚本（假设用户脚本为script.lua）
-	mgr.start(scriptPath);
-
 	
+	    std::string scriptPath = "D:\\LJH\\VS_PROJECT\\ConsoleFrame\\Debug\\script\\0307.lua";
+	auto L= g_mgr.get()->L;
+		luaL_openlibs(L);
 
+		// 调用前验证函数类型
+		lua_getglobal(L, "executefile");
+		if (!lua_isfunction(L, -1)) {
+			std::cerr << "致命错误: executefile 未定义或类型错误" << std::endl;
+			lua_pop(L, 1);
+			return;
+		}
+
+		// 准备参数
+
+		lua_pushstring(L, scriptPath.c_str());
+
+		// 调用函数 (1 个参数, 0 返回值)
+		if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+			std::cerr << "Lua 错误: " << lua_tostring(L, -1) << std::endl;
+			lua_pop(L, 1);
+		}
 
 	//std::string script = R"(
  //       -- 初始代码段

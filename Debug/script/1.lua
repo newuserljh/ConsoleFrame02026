@@ -1,25 +1,14 @@
--- 全局跳转表，存储标签及其对应的 PC 值
+-- 初始化全局环境
+local ffi = require("ffi")
+ffi.cdef[[void Sleep(int ms);]]
+
+-- 标签系统
 _G.__GOTO_TABLE__ = {}
 
--- 栈结构，用于处理嵌套块的标签
-__GOTO_STACK__ = {}
-
--- 工具函数：获取表格键列表
-function table.keys(t)
-    local keys = {}
-    for k in pairs(t) do table.insert(keys, k) end
-    return keys
-end
-
--- 精准标签扫描器
-function scan_labels(code)  -- 确保参数存在性检查
-    if not code then
-        error("scan_labels: 缺少代码内容")
-    end
-
+function _G.scan_labels(code)
     local labels = {}
     local line_number = 1
-    for line in code:gmatch("([^\r\n]*)\r?\n?") do
+    for line in code:gmatch("([^\n]*)\n?") do
         local label = line:match("^%s*::%s*(.-)%s*::%s*$")
         if label and label ~= "" then
             labels[label] = line_number
@@ -29,120 +18,115 @@ function scan_labels(code)  -- 确保参数存在性检查
     return labels
 end
 
--- 可靠跳转函数
 function _G.goto(label)
-    local labels = _G.__GOTO_TABLE__
-
-    if not labels[label] then
-        error(string.format("标签 '%s' 不存在（可用标签: %s）",
-             label, table.concat(table.keys(labels), ", ")))
+    local target = __GOTO_TABLE__[label]
+    if not target then
+        error("未定义标签: "..label)
     end
-
-    local target_line = labels[label]
-    local current_line = debug.getinfo(2, "l").currentline or 0
-
-    if current_line >= target_line then
-        error(string.format("禁止向后跳转 (当前行:%d → 目标行:%d)",
-              current_line, target_line))
-    end
-
-    debug.sethook(function(event, line)
-        if event == "line" then
-            if line >= target_line then
-                debug.sethook()
-            end
-        end
-    end, "l")
+    error("__GOTO__"..target, 2)
 end
 
-
-    -- 修改程序计数器以实现跳转
-    debug.setlocal(1, 0, target_pc)
-end
-
--- 钩子函数，用于记录标签及其 PC 值
-local function hook(event, line)
-    if event == "call" then
-        -- 进入函数时，记录当前块的标签
-        local info = debug.getinfo(2, "n")
-        if info.name == "goto" then
-            local current_label = debug.getlocal(2, 1)
-            table.insert(__GOTO_STACK__, current_label)
-        end
-    elseif event == "return" then
-        -- 退出函数时，移除当前块的标签
-        if #__GOTO_STACK__ > 0 then
-            table.remove(__GOTO_STACK__, #__GOTO_STACK__)
-        end
-    elseif event == "line" then
-        -- 记录标签及其 PC 值
-        local info = debug.getinfo(2, "S")
-        if info.source ~= nil then
-            local current_label = debug.getlocal(2, 1)
-            if current_label ~= nil then
-                __GOTO_TABLE__[current_label] = debug.getpc()
-            end
-        end
-    end
-end
-
--- 设置调试钩子
-debug.sethook(hook, "call,return,line")
-
--- 自定义触发器系统
-local triggerSystem = {
+-- 触发器系统
+_G.triggerSystem = {
     triggers = {},
-    checkInterval = 500
+    add = function(self, condition_func, action_func)
+        table.insert(self.triggers, {
+            condition = condition_func,
+            action = action_func
+        })
+    end
 }
 
-function triggerSystem:add(condition, action)
-    table.insert(self.triggers, {
-        condition = condition,
-        action = action
-    })
-end
-
-function triggerSystem:check()
-    for _, t in ipairs(self.triggers) do
-        if load("return "..t.condition)() then
-            load(t.action)()
+function _G.sleep(ms)
+    ffi.C.Sleep(ms)
+    for _, t in ipairs(triggerSystem.triggers) do
+        if t.condition() then
+            t.action()
+            break
         end
     end
 end
 
--- 修改后的sleep函数
-local originalSleep = sleep
-function sleep(ms)
-    originalSleep(ms)
-    triggerSystem:check()
-end
+-- 主执行器
+function _G.execute(code)
+    _G.__GOTO_TABLE__ = scan_labels(code)
 
+    local chunk, err = load(code, nil, "t", _G)
+    if not chunk then return print("加载错误:", err) end
 
--- 使用示例
-triggerSystem:add("血量 < 30", [[
-    game:useItem("红药")
-    print("自动使用红药")
-]])
+    while true do
+        local success, msg = xpcall(chunk, debug.traceback)
+        if success then break end
 
-triggerSystem:add("血量>90", [[
-  goto 结束
-]])
-
-function 回城()
-   print("回城")
-end
-
-
-print(血量)
-print("12311111")
-
-for i = 0, 99 do
-    print("当前血量:".. 血量)
-    sleep(100)
-    if i % 10 == 0 then
-        print(i)
+        if msg:find("__GOTO__") then
+            local target_line = tonumber(msg:match("__GOTO__(%d+)"))
+            local new_code = {}
+            local current_line = 1
+            for line in code:gmatch("([^\n]*)\n?") do
+                if current_line >= target_line then
+                    table.insert(new_code, line)
+                end
+                current_line = current_line + 1
+            end
+            chunk = load(table.concat(new_code, "\n"), nil, "t", _G)
+        else
+            return print("运行时错误:", msg)
+        end
     end
 end
 
-::结束::
-print("end！")
+-- 主执行器（支持文件路径输入）
+function _G.executefile(filepath)
+    -- 读取文件内容
+    local f = io.open(filepath, "r")
+    if not f then
+        error("无法打开文件: "..filepath)
+    end
+    local code = f:read("*a")
+    f:close()
+
+    -- 扫描标签并初始化
+    _G.__GOTO_TABLE__ = scan_labels(code)
+
+    -- 创建代码块加载器闭包
+    local function create_chunk(code_segment)
+        return load(code_segment, "@"..filepath, "t", _G)
+    end
+
+    -- 初始代码块
+    local chunk, err = create_chunk(code)
+    if not chunk then
+        error("加载错误: "..tostring(err))
+    end
+
+    -- 执行循环
+    while true do
+        local success, msg = xpcall(chunk, debug.traceback)
+        if success then break end
+
+        -- 处理跳转信号
+        if msg:find("__GOTO__") then
+            local target_line = tonumber(msg:match("__GOTO__(%d+)"))
+
+            -- 重建跳转后的代码段
+            local new_code = {}
+            local current_line = 1
+            for line in code:gmatch("([^\n]*)\n?") do
+                if current_line >= target_line then
+                    table.insert(new_code, line)
+                end
+                current_line = current_line + 1
+            end
+
+            chunk = create_chunk(table.concat(new_code, "\n"))
+        else
+            error("运行时错误: "..msg)
+        end
+    end
+end
+
+-- 使用示例
+executefile("D:\\LJH\\VS_PROJECT\\ConsoleFrame\\Debug\\script\\0307.lua")  -- 直接执行外部脚本文件
+
+
+

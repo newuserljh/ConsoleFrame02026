@@ -6,7 +6,6 @@
 #include "lua_interface.h"
 
 // CTestDlg 对话框
-
 class CTestDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CTestDlg)
@@ -95,8 +94,8 @@ protected:
 
 public:
 	afx_msg void OnBnClickedBtnLuatst();
-	lua_interface m_luaInterface; // 添加 lua_interface 成员变量
-	//成员
+
+
 public:
 	DWORD mPid;
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);

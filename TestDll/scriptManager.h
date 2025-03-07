@@ -1,3 +1,4 @@
+#pragma once
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
@@ -88,7 +89,7 @@ private:
 	std::shared_mutex cacheMutex;
 	std::unordered_map<std::string, std::pair<int, int64_t>> varCache; // <value, timestamp>
 
-	lua_State* L;
+
 	lua_interface* game;
 	static const char* REGISTRY_KEY;
 	const int CACHE_TTL = 100; // 100ms缓存有效期
@@ -167,28 +168,28 @@ private:
 
 
 public:
-	scriptManager(lua_interface* gameInterface)
-		: game(gameInterface) {
+	lua_State* L;
+	scriptManager(lua_interface* p):game(p){
 		initLuaState();
+		if (nullptr == game) { std::cout << "初始化ScriptManager失败！" << std::endl; return; }
 		game->registerClasses(L);
 		auto_register_game_vars();
 		//start_trigger_monitor();
-		
+
 		luabridge::getGlobalNamespace(L)
 			.beginClass<scriptManager>("scriptManager")
 			.addFunction("add_trigger", &scriptManager::add_trigger)
 			.addFunction("execute_action", &scriptManager::execute_action)
 			.addFunction("reload_script", &scriptManager::reload_script)
 			.addFunction("stop_all_triggers", &scriptManager::stop_all_triggers)
-			.addFunction("request_stop",&scriptManager::request_stop)
-			.addFunction("clear_triggers",&scriptManager::clear_triggers)
+			.addFunction("request_stop", &scriptManager::request_stop)
+			.addFunction("clear_triggers", &scriptManager::clear_triggers)
 			.endClass();
 		// 将game接口暴露到Lua全局
 		luabridge::setGlobal(L, game, "game");
 
 		// 暴露管理器自身到 Lua
 		luabridge::setGlobal(L, this, "scriptMgr");
-
 	}
 
 	~scriptManager() {
@@ -204,6 +205,30 @@ public:
 		if (threadLua) {
 			lua_close(threadLua);
 		}
+	}
+	
+	void initialze(lua_interface* gameInterface)
+	{
+		game= gameInterface;
+		if (nullptr == game) { std::cout << "初始化ScriptManager失败！" << std::endl; return; }
+		game->registerClasses(L);
+		auto_register_game_vars();
+		//start_trigger_monitor();
+
+		luabridge::getGlobalNamespace(L)
+			.beginClass<scriptManager>("scriptManager")
+			.addFunction("add_trigger", &scriptManager::add_trigger)
+			.addFunction("execute_action", &scriptManager::execute_action)
+			.addFunction("reload_script", &scriptManager::reload_script)
+			.addFunction("stop_all_triggers", &scriptManager::stop_all_triggers)
+			.addFunction("request_stop", &scriptManager::request_stop)
+			.addFunction("clear_triggers", &scriptManager::clear_triggers)
+			.endClass();
+		// 将game接口暴露到Lua全局
+		luabridge::setGlobal(L, game, "game");
+
+		// 暴露管理器自身到 Lua
+		luabridge::setGlobal(L, this, "scriptMgr");
 	}
 
 	// 条件解析方法
