@@ -171,6 +171,11 @@ _G.triggerSystem = {
             condition = condition_func,
             action = action_func
         })
+    end,
+    -- 新增清空方法
+    clear = function(self)
+        self.triggers = {}  -- 重新初始化触发器列表
+	_G.__GOTO_TABLE__ = {}
     end
 }
 
@@ -223,6 +228,7 @@ function _G.executefile(filepath)
     f:close()
 
     -- 扫描标签并初始化
+	--_G.triggerSystem:clear()
     _G.__GOTO_TABLE__ = scan_labels(code)
 
     -- 创建代码块加载器闭包

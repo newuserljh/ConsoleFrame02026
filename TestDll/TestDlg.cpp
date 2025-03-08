@@ -77,6 +77,7 @@ IMPLEMENT_DYNAMIC(CTestDlg, CDialogEx)
 
 CTestDlg::CTestDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CTestDlg::IDD, pParent)
+	, m_EditLuaPath(_T(""))
 {
 	
 }
@@ -90,6 +91,7 @@ void CTestDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_EDIT2, m_edit2);
+	DDX_Text(pDX, IDC_EDIT_LUA_PATH, m_EditLuaPath);
 }
 
 
@@ -108,6 +110,7 @@ BEGIN_MESSAGE_MAP(CTestDlg, CDialogEx)
 	ON_WM_ERASEBKGND()
 	ON_BN_CLICKED(IDC_BTN_BAGPROC, &CTestDlg::OnBnClickedBtnBagproc)
 	ON_BN_CLICKED(IDC_BUTTON6, &CTestDlg::OnBnClickedButton6)
+	ON_BN_CLICKED(IDC_BTN_CHOOSE_LUA_FILE, &CTestDlg::OnBnClickedBtnChooseLuaFile)
 END_MESSAGE_MAP()
 
 // CTestDlg 消息处理程序
@@ -171,10 +174,7 @@ void threadLogin()
 		r_bag.maxSize = *r.m_roleproperty.Bag_Size;
 		r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
 		r_bag.init();
-		init_global_objects();
-		std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
-		// 启动脚本（假设用户脚本为script.lua）
-		g_mgr.get()->start(scriptPath);
+		pDlg->SetTimer(99999, 500, NULL);
 	}
 	return;
 }
@@ -941,14 +941,72 @@ void  CTestDlg::RoleIsDeath(void)
 void CTestDlg::RunLuaScriptInThread(LPVOID p, lua_State* L, const std::string& scriptPath, std::function<void(const std::string&)> errorCallback)
 {
 	CTestDlg* pdlg = (CTestDlg*)p;
-	// 加载并执行 Lua 脚本
-	if (luaL_loadfile(L, scriptPath.c_str()) || lua_pcall(L, 0, 0, 0)) {
-		if (errorCallback) {
-			errorCallback(lua_tostring(L, -1));
-		}
-		lua_pop(L, 1); // 清除错误消息
-		pdlg->GetDlgItem(IDC_BTN_LUATST)->EnableWindow(TRUE);
+
+	// 获取_G全局环境
+	lua_getglobal(L, "_G");
+	if (lua_isnil(L, -1)) {
+		errorCallback("Lua 错误: _G 不存在");
+		lua_pop(L, 1);
 		return;
+	}
+	// 获取triggerSystem对象
+	lua_getfield(L, -1, "triggerSystem");
+	if (!lua_istable(L, -1)) {
+		errorCallback("Lua 错误: triggerSystem 不存在或不是表");
+		lua_pop(L, 2);
+		return;
+	}
+	// 获取clear方法
+	lua_getfield(L, -1, "clear");
+	if (!lua_isfunction(L, -1)) {
+		errorCallback("Lua 错误: clear 方法不存在或不是函数");
+		lua_pop(L, 3);
+		return;
+	}
+	// 将 self（triggerSystem 表）压入栈
+	lua_pushvalue(L, -2);  // 复制 triggerSystem 到栈顶
+	// 调用clear方法
+	int result = lua_pcall(L, 1, 0, 0);
+	if (result != LUA_OK) {
+		if (lua_isstring(L, -1)) {
+			const char* luaError = lua_tostring(L, -1);
+			errorCallback("Lua 错误: " + std::string(luaError));
+		}
+		else {
+			errorCallback("Lua 错误: 未知错误");
+		}
+		lua_pop(L, 1);
+	}
+
+	// 清理栈
+	lua_pop(L, 3); // 弹出clear方法 triggerSystem对象 _G全局环境
+
+	// 加载并执行 Lua 脚本
+	// 调用前验证函数类型
+	lua_getglobal(L, "executefile");
+	if (!lua_isfunction(L, -1)) {
+		std::string errorMsg = "致命错误: executefile 未定义或类型错误";
+		errorCallback(errorMsg); // 通过回调传递错误
+		lua_pop(L, 1);
+		return;
+	}
+
+	// 准备参数
+	lua_pushstring(L, scriptPath.c_str());
+	// 调用函数 (1 参数, 0 返回值)
+	result = lua_pcall(L, 1, 0, 0);
+	if (result != LUA_OK) {
+		if (lua_isstring(L, -1)) {
+			const char* luaError = lua_tostring(L, -1);
+			errorCallback("Lua 错误: " + std::string(luaError));
+		}
+		else {
+			errorCallback("Lua 错误: 未知错误");
+		}
+		lua_pop(L, 1);
+	}
+	else {
+		lua_pop(L, 1); // 弹出函数
 	}
 	pdlg->GetDlgItem(IDC_BTN_LUATST)->EnableWindow(TRUE);
 }
@@ -1312,6 +1370,16 @@ void CTestDlg::OnTimer(UINT_PTR nIDEvent)
 	case 22222:
 		RoleIsDeath();
 		break;
+	case 99999:
+	{
+		init_global_objects();
+		std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
+		// 启动脚本（假设用户脚本为script.lua）
+		g_mgr.get()->start(scriptPath);
+		KillTimer(99999);
+	}
+		break;
+
 	default:
 		break;
 	}
@@ -1428,12 +1496,14 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 //lua脚本测试
 void CTestDlg::OnBnClickedBtnLuatst()
 {
-	
-	    std::string scriptPath = "D:\\LJH\\VS_PROJECT\\ConsoleFrame\\Debug\\script\\0307.lua";
-	auto L= g_mgr.get()->L;
-		luaL_openlibs(L);
+	if (m_EditLuaPath.IsEmpty())
+	{
+		MessageBox(_T("请选择Lua文件！"), _T("错误"), MB_ICONERROR);
+		return;
+	}
 
 		// 调用前验证函数类型
+		auto L=g_mgr.get()->L;
 		lua_getglobal(L, "executefile");
 		if (!lua_isfunction(L, -1)) {
 			std::cerr << "致命错误: executefile 未定义或类型错误" << std::endl;
@@ -1442,87 +1512,43 @@ void CTestDlg::OnBnClickedBtnLuatst()
 		}
 
 		// 准备参数
+		std::string scriptPath = m_EditLuaPath.GetString();
+		//lua_pushstring(L, scriptPath.c_str());
 
-		lua_pushstring(L, scriptPath.c_str());
+		//// 调用函数 (1 个参数, 0 返回值)
+		//if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+		//	std::cerr << "Lua 错误: " << lua_tostring(L, -1) << std::endl;
+		//	lua_pop(L, 1);
+		//}
 
-		// 调用函数 (1 个参数, 0 返回值)
-		if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-			std::cerr << "Lua 错误: " << lua_tostring(L, -1) << std::endl;
-			lua_pop(L, 1);
-		}
+   // 定义错误回调函数
+	auto errorCallback = [](const std::string& errorMessage) {
+		std::cerr << "Error in Lua script: " << errorMessage << std::endl;
+		};
 
-	//std::string script = R"(
- //       -- 初始代码段
- //       hp = 100
- //       mp = 30
- //       while true do
- //           print("HP:", hp, "MP:", mp)
- //           hp = hp - 1
- //           mp = mp - 1
- //       end
- //       触发器：if hp < 50 and mp < 10 goto low_resources
- //       ::low_resources::
- //       print("警告：资源不足！")
- //       触发器：if hp < 10 goto critical
- //       ::critical::
- //       while true do
-	//		print("危险：生命值极低！");
-	//	end
- //   )";
+	luaStopFlag.store(false);//重置停止标志
 
-	//mgr.loadScript(script);
-	//mgr.printLabelCodeMap();
-	//mgr.execute();
-
-
-	//if (!L) {
-	//	std::cerr << "Failed to create Lua state" << std::endl;
-	//	return;
-	//}
-
- //  // 定义错误回调函数
-	//auto errorCallback = [](const std::string& errorMessage) {
-	//	std::cerr << "Error in Lua script: " << errorMessage << std::endl;
-	//	};
-
-	//luaStopFlag.store(false);//重置停止标志
-
-	//// 在 Lua 状态中设置全局变量 stopScript
-	//lua_pushboolean(L, luaStopFlag.load());
-	//lua_setglobal(L, "luaStopFlag");
-
-	//// 在 Lua 状态中设置全局变量 currentDir
-	//std::string s = (std::string)shareCli.m_pSMAllData->currDir;
-	//s.pop_back();
-	//lua_pushstring(L, s.c_str());
-	//lua_setglobal(L, "currentDir");
-
-	////初始化lua的设置
-	//std::string initPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init.lua";
-	//if (luaL_loadfile(L, initPath.c_str()) || lua_pcall(L, 0, 0, 0)) {
-	//	std::cerr << "Failed to load and run script: " << lua_tostring(L, -1) << std::endl;
-	//	lua_pop(L, 1); // 清除错误消息
-	//	return;
-	//}
-	///*std::cout << "初始化Lua环境成功！" << std::endl;*/
-	////std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\test.lua";
-	//	// 使用 lambda 表达式调用成员函数
-	//std::thread scriptThread([this, initPath, errorCallback]() {this->RunLuaScriptInThread(LPVOID(this), L, initPath, errorCallback); });
-	//scriptThread.detach();  // 分离线程，使其独立运行
-	//// 主线程可以继续执行其他任务
-	//GetDlgItem(IDC_BTN_LUATST)->EnableWindow(FALSE); // 禁用按钮并设置为灰色
+	// 在 Lua 状态中设置全局变量 stopScript
+	lua_pushboolean(L, luaStopFlag.load());
+	lua_setglobal(L, "luaStopFlag");
+	//std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\test.lua";
+		// 使用 lambda 表达式调用成员函数
+	std::thread scriptThread([this,L,scriptPath, errorCallback]() {this->RunLuaScriptInThread(LPVOID(this), L, scriptPath, errorCallback); });
+	scriptThread.detach();  // 分离线程，使其独立运行
+	// 主线程可以继续执行其他任务
+	GetDlgItem(IDC_BTN_LUATST)->EnableWindow(FALSE); // 禁用按钮并设置为灰色
 }
 
 //停止lua脚本
 void CTestDlg::OnBnClickedButton6()
 {
 	// 设置停止标志
-	//luaStopFlag.store(true);
-	//// 更新 Lua 状态中的全局变量 stopScript
-	//if (L) {
-	//	lua_pushboolean(L, luaStopFlag.load());
-	//	lua_setglobal(L, "stopScript");
-	//}
+	luaStopFlag.store(true);
+	// 更新 Lua 状态中的全局变量 stopScript
+	if (g_mgr.get()->L) {
+		lua_pushboolean(g_mgr.get()->L, luaStopFlag.load());
+		lua_setglobal(g_mgr.get()->L, "luaStopFlag");
+	}
 
 }
 
@@ -1555,3 +1581,23 @@ void CTestDlg::OnBnClickedBtnBagproc()
 
 
 
+
+//浏览选择Lua脚本文件
+void CTestDlg::OnBnClickedBtnChooseLuaFile()
+{
+	// 设置文件过滤器
+	CString strFilter = _T("Lua Files (*.lua)|*.lua|All Files (*.*)|*.*||");
+
+	// 创建文件对话框
+	CFileDialog fileDlg(TRUE, _T("lua"), NULL,
+		OFN_HIDEREADONLY | OFN_FILEMUSTEXIST, strFilter);
+
+	if (fileDlg.DoModal() == IDOK)
+	{
+		m_EditLuaPath = fileDlg.GetPathName();
+		UpdateData(FALSE); // 更新编辑框中的内容
+	}
+	else
+		return;
+
+}

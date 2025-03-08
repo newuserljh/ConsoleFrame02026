@@ -101,4 +101,6 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnBnClickedBtnBagproc();
 	afx_msg void OnBnClickedButton6();
+	afx_msg void OnBnClickedBtnChooseLuaFile();
+	CString m_EditLuaPath;
 };

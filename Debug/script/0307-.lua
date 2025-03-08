@@ -13,4 +13,5 @@ for i = 1, 100 do
 end
 
 ::结束::
+executefile("2.lua")
 print("任务完成")
