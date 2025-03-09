@@ -134,6 +134,7 @@ DWORD GetMainThreadId(DWORD processId = 0)
 //设置子窗口透明
 void SetTransparent(HWND hwnd, BYTE alpha)
 {
+	AFX_MANAGE_STATE(AfxGetStaticModuleState());
 	// 设置窗口为分层窗口
 	LONG_PTR exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
 	if (!(exStyle & WS_EX_LAYERED))
@@ -212,7 +213,7 @@ void EmbedIntoGameWindow(HWND dlgHwnd, HWND gameHwnd) {
 		return;
 	}
 
-  // 设置透明度为 128 (半透明)
+  // 设置透明度为 128 (100透明)
 	SetTransparent(dlgHwnd, 128);
 
 	OutputDebugString("Successfully embedded MFC dialog into game window\n");
