@@ -226,7 +226,14 @@ function _G.executefile(filepath)
     end
     local code = f:read("*a")
     f:close()
-
+	code = code .. [[
+    triggerSystem:add(
+      function() return luaStopFlag end,
+      function() goto "endScript" end
+     )
+    ::endScript::
+     print("脚本已停止!!!")
+]]
     -- 扫描标签并初始化
 	--_G.triggerSystem:clear()
     _G.__GOTO_TABLE__ = scan_labels(code)

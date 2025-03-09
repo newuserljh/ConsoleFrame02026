@@ -1375,6 +1375,10 @@ void CTestDlg::OnTimer(UINT_PTR nIDEvent)
 		init_global_objects();
 		std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
 		// 启动脚本（假设用户脚本为script.lua）
+		// 在 Lua 状态中设置全局变量 stopScript
+		luaStopFlag.store(false);//重置停止标志
+		lua_pushboolean(g_mgr.get()->L, luaStopFlag.load());
+		lua_setglobal(g_mgr.get()->L, "luaStopFlag");
 		g_mgr.get()->start(scriptPath);
 		KillTimer(99999);
 	}
@@ -1501,38 +1505,21 @@ void CTestDlg::OnBnClickedBtnLuatst()
 		MessageBox(_T("请选择Lua文件！"), _T("错误"), MB_ICONERROR);
 		return;
 	}
-
-		// 调用前验证函数类型
-		auto L=g_mgr.get()->L;
-		lua_getglobal(L, "executefile");
-		if (!lua_isfunction(L, -1)) {
-			std::cerr << "致命错误: executefile 未定义或类型错误" << std::endl;
-			lua_pop(L, 1);
-			return;
-		}
-
-		// 准备参数
-		std::string scriptPath = m_EditLuaPath.GetString();
-		//lua_pushstring(L, scriptPath.c_str());
-
-		//// 调用函数 (1 个参数, 0 返回值)
-		//if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-		//	std::cerr << "Lua 错误: " << lua_tostring(L, -1) << std::endl;
-		//	lua_pop(L, 1);
-		//}
-
+	// 准备参数
+	std::string scriptPath = m_EditLuaPath.GetString();
    // 定义错误回调函数
 	auto errorCallback = [](const std::string& errorMessage) {
 		std::cerr << "Error in Lua script: " << errorMessage << std::endl;
 		};
-
+	auto L= g_mgr.get()->L;
 	luaStopFlag.store(false);//重置停止标志
-
-	// 在 Lua 状态中设置全局变量 stopScript
-	lua_pushboolean(L, luaStopFlag.load());
-	lua_setglobal(L, "luaStopFlag");
-	//std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\test.lua";
-		// 使用 lambda 表达式调用成员函数
+	// 更新 Lua 状态中的全局变量 luaStopFlag
+	if (L) {
+		lua_pushboolean(L, luaStopFlag.load());
+		lua_setglobal(L, "luaStopFlag");
+	}
+	// Lua全局变量 luaStopFlag  已在智能指针初始化后注册 用于控制脚本的停止
+	// 使用 lambda 表达式调用成员函数
 	std::thread scriptThread([this,L,scriptPath, errorCallback]() {this->RunLuaScriptInThread(LPVOID(this), L, scriptPath, errorCallback); });
 	scriptThread.detach();  // 分离线程，使其独立运行
 	// 主线程可以继续执行其他任务

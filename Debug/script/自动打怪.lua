@@ -1,5 +1,5 @@
 -- 全局 lua_interface 对象 game
-
+local game=_G.game
 -- 打印分隔线
 local function printSeparator()
     print("--------------------------------------------------")
@@ -191,15 +191,11 @@ end
 
 -- 战斗
 function startCombat()
+        game:开始战斗()
     while not luaStopFlag do
 	-- 检查是否需要暂停或终止
         if luaStopFlag then
-            if game:停止战斗() then
-                print("战斗停止成功")
-            else
-                print("战斗停止失败")
-            end
-			return
+		game:停止战斗() 
         end
         sleep(5000)  -- 每 5000 毫秒检查一次停止标志
     end
@@ -310,7 +306,6 @@ end
 
 local function main()
 -- 运行主循环
-	while not luaStopFlag do
     print("Running...")
    卖物补给()
 
@@ -318,11 +313,7 @@ local function main()
     出发()
 
     ---开始战斗
- 自动战斗()
-
-   -- 模拟脚本执行一段时间
-    sleep(5000)
-	end
+ startCombat()
 end
 
 main()
