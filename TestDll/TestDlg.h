@@ -4,11 +4,13 @@
 //#include "lua.hpp"
 //#include "LuaBridge/LuaBridge.h"
 #include "lua_interface.h"
+#include "EditStream.h"
 
 // CTestDlg 对话框
 class CTestDlg : public CDialogEx
-{
+{	
 	DECLARE_DYNAMIC(CTestDlg)
+	
 
 public:
 	CTestDlg(CWnd* pParent = NULL);   // 标准构造函数
@@ -103,4 +105,5 @@ public:
 	afx_msg void OnBnClickedButton6();
 	afx_msg void OnBnClickedBtnChooseLuaFile();
 	CString m_EditLuaPath;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

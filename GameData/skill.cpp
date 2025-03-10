@@ -23,7 +23,7 @@ bool skill::init()
 		do 
 		{
 			temp.ID = (DWORD*)(skillBase + i * 0x88 + 0xe);
-			temp.level = (BYTE*)(skillBase + i * 0x88 + 8);
+			temp.level = (DWORD*)(skillBase + i * 0x88 + 8);
 			temp.pName = (char*)(skillBase + i * 0x88 + 0x14);
 			m_skillList.push_back(temp);
 			i++;

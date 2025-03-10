@@ -115,6 +115,7 @@
     <ClCompile Include="TestDll.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EditStream.h" />
     <ClInclude Include="lua_interface.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="scriptManager.h" />

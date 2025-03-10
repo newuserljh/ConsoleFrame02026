@@ -56,6 +56,9 @@
     <ClInclude Include="scriptManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="EditStream.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="TestDll.def">

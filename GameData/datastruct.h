@@ -81,7 +81,7 @@ struct SKILL_PROPERTY
 {
 	SKILL_PROPERTY();
 	~SKILL_PROPERTY();
-	BYTE* level;// +8
+	DWORD* level;// +8
 	DWORD* ID;// + 0xe
 	char* pName;//+ 14
 };

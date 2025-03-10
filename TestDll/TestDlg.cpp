@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include <iomanip>
 #include "TestDll.h"
 #include "TestDlg.h"
 #include "afxdialogex.h"
@@ -55,8 +56,6 @@ std::mutex team_mutex;  // 队伍文件变量互斥
 MapNames map_names; //地图名称映射
 Transitions transitions; //地图转换
 
-// 定义一个回调函数类型 用于Lua处理错误回调
-using ErrorCallback = std::function<void(const std::string&)>;
 
 _declspec(naked) void CallTest()
 {
@@ -111,6 +110,7 @@ BEGIN_MESSAGE_MAP(CTestDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_BAGPROC, &CTestDlg::OnBnClickedBtnBagproc)
 	ON_BN_CLICKED(IDC_BUTTON6, &CTestDlg::OnBnClickedButton6)
 	ON_BN_CLICKED(IDC_BTN_CHOOSE_LUA_FILE, &CTestDlg::OnBnClickedBtnChooseLuaFile)
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 // CTestDlg 消息处理程序
@@ -156,8 +156,6 @@ void threadLogin()
 		//登陆成功 初始化
 		pDlg->SetTimer(22222, 5000, NULL);	//设置定时器5s 检测角色是否死亡
 		//初始化背包  技能 队伍
-
-
 		m_skill.skillBase = (DWORD)r.m_roleproperty.p_Skill_Base;
 		m_skill.init();
 		m_team.team_Base = r.m_roleproperty.Team_pointer;
@@ -174,7 +172,7 @@ void threadLogin()
 		r_bag.maxSize = *r.m_roleproperty.Bag_Size;
 		r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
 		r_bag.init();
-		pDlg->SetTimer(99999, 500, NULL);
+		pDlg->SetTimer(99999, 500, NULL);//用于初始智能指针
 	}
 	return;
 }
@@ -208,9 +206,13 @@ void AppendText(CEdit &m_edit, CString strAdd)
 BOOL CTestDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-
-
-
+	m_edit2.SetLimitText(0); // 解除字符限制
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT2);
+	static EditStreamBuf editBuf(pEdit);
+	std::cout.rdbuf(&editBuf); // 重定向 cout
+	// 为 std::cerr 创建缓冲区
+	static EditStreamBuf cerrBuf(pEdit);
+	std::cerr.rdbuf(&cerrBuf); // 重定向 std::cerr
 		//初始化 线程标志
 	tflag_attack = true;
 	tflag_goto = true;
@@ -479,70 +481,47 @@ void CTestDlg::AutoReturnToCity()
 // 遍历人物属性
 void CTestDlg::OnBnClickedButton1()
 {
-	if (!r.init())return;
-	CString s;
-	s.Format("%s\n", r.m_roleproperty.Object.pName);
-	AppendText(m_edit2, s);
-	char* sex = {};
-	char* job = {};
-	if (*r.m_roleproperty.Sex == 0)sex = "男";
-	else sex = "女";
-	if (*r.m_roleproperty.Job == 0)job = "战士";
-	else if (*r.m_roleproperty.Job == 1)job = "法师";
-	else job = "道士";
-	s.Format("职业:%s      等级:%d    性别:%s", job, *r.m_roleproperty.Level, sex);
-	AppendText(m_edit2, s);;
-	s.Format("HP:%d / %d", *r.m_roleproperty.Object.HP, *r.m_roleproperty.Object.HP_MAX);
-	AppendText(m_edit2, s);
-	s.Format("MP:%d / %d", *r.m_roleproperty.Object.MP, *r.m_roleproperty.Object.MP_MAX);
-	AppendText(m_edit2, s);
-	s.Format("当前地图:%s  坐标%d,%d", r.m_roleproperty.p_Current_Map, *r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y);
-	AppendText(m_edit2, s);
-	s.Format("背包大小:%d  背包负重%d / %d", *r.m_roleproperty.Bag_Size, *r.m_roleproperty.BAG_W, *r.m_roleproperty.BAG_W_MAX);
-	AppendText(m_edit2, s);
-	s.Format("ID:%x", *r.m_roleproperty.Object.ID);
-	AppendText(m_edit2, s);
+	if (!r.init()) return;
+	std::cout << r.m_roleproperty.Object.pName << std::endl;
+	char* sex = (*r.m_roleproperty.Sex == 0) ? "男" : "女";
+	char* job = (*r.m_roleproperty.Job == 0) ? "战士" :(*r.m_roleproperty.Job == 1) ? "法师" : "道士";
+	std::cout << "职业:" << job << "      等级:" << *r.m_roleproperty.Level << "    性别:" << sex << std::endl;
+	std::cout << "HP:" << *r.m_roleproperty.Object.HP << " / " << *r.m_roleproperty.Object.HP_MAX << std::endl;
+	std::cout << "MP:" << *r.m_roleproperty.Object.MP << " / " << *r.m_roleproperty.Object.MP_MAX << std::endl;
+	std::cout << "当前地图:" << r.m_roleproperty.p_Current_Map << "  坐标" << *r.m_roleproperty.Object.X << "," << *r.m_roleproperty.Object.Y << std::endl;
+	std::cout << "背包大小:" << *r.m_roleproperty.Bag_Size << "  背包负重" << *r.m_roleproperty.BAG_W << " / " << *r.m_roleproperty.BAG_W_MAX << std::endl;
+	std::cout << "ID:" << std::hex << *r.m_roleproperty.Object.ID << std::dec << std::endl;
+	// 输出装备信息
 	for (auto i = 0; i < 21; i++)
 	{
-		if (!(*r.m_euip[i].ID))continue;
-		s.Format("%d :%s 耐久:%d/%d", i, r.m_euip[i].pName, *(r.m_euip[i].Use_Num), *(r.m_euip[i].Use_Num_Max));
-		AppendText(m_edit2, s);
+		if (!(*r.m_euip[i].ID)) continue;
+		std::cout << i << " :" << r.m_euip[i].pName << " 耐久:" << *(r.m_euip[i].Use_Num) << "/" << *(r.m_euip[i].Use_Num_Max) << std::endl;
 	}
 
 	// 元神属性
-	if (*r.m_roleproperty.Is_has_Promenade == 0)return;
+	if (*r.m_roleproperty.Is_has_Promenade == 0) return;
 	Promenade.init_promenade();
 	if (*Promenade.m_roleproperty.Is_Promenade_Release == 0) mfun.release_Promenade();
-	if (!Promenade.init_promenade())return;
-	s.Format("%s\n", Promenade.m_roleproperty.Object.pName);
-	AppendText(m_edit2, s);
-	if (*Promenade.m_roleproperty.Sex == 0)sex = "男";
-	else sex = "女";
-	if (*Promenade.m_roleproperty.Job == 0)job = "战士";
-	else if (*Promenade.m_roleproperty.Job == 1)job = "法师";
-	else job = "道士";
-	s.Format("职业:%s      等级:%d    性别:%s", job, *Promenade.m_roleproperty.Level, sex);
-	AppendText(m_edit2, s);;
-	s.Format("HP:%d / %d", *Promenade.m_roleproperty.Object.HP, *Promenade.m_roleproperty.Object.HP_MAX);
-	AppendText(m_edit2, s);
-	s.Format("MP:%d / %d", *Promenade.m_roleproperty.Object.MP, *Promenade.m_roleproperty.Object.MP_MAX);
-	AppendText(m_edit2, s);
-	s.Format("当前地图:%s  坐标%d,%d", Promenade.m_roleproperty.p_Current_Map, *Promenade.m_roleproperty.Object.X, *Promenade.m_roleproperty.Object.Y);
-	AppendText(m_edit2, s);
-	s.Format("背包大小:%d  背包负重%d / %d", *Promenade.m_roleproperty.Bag_Size, *Promenade.m_roleproperty.BAG_W, *Promenade.m_roleproperty.BAG_W_MAX);
-	AppendText(m_edit2, s);
-	s.Format("ID:%x", *Promenade.m_roleproperty.Object.ID);
-	AppendText(m_edit2, s);
+	if (!Promenade.init_promenade()) return;
+	std::cout << Promenade.m_roleproperty.Object.pName << std::endl;
+	sex = (*Promenade.m_roleproperty.Sex == 0) ? "男" : "女";
+	job = (*Promenade.m_roleproperty.Job == 0) ? "战士" :(*Promenade.m_roleproperty.Job == 1) ? "法师" : "道士";
+	std::cout << "职业:" << job << "      等级:" << *Promenade.m_roleproperty.Level << "    性别:" << sex << std::endl;
+	std::cout << "HP:" << *Promenade.m_roleproperty.Object.HP << " / " << *Promenade.m_roleproperty.Object.HP_MAX << std::endl;
+	std::cout << "MP:" << *Promenade.m_roleproperty.Object.MP << " / " << *Promenade.m_roleproperty.Object.MP_MAX << std::endl;
+	std::cout << "当前地图:" << Promenade.m_roleproperty.p_Current_Map << "  坐标" << *Promenade.m_roleproperty.Object.X << "," << *Promenade.m_roleproperty.Object.Y << std::endl;
+	std::cout << "背包大小:" << *Promenade.m_roleproperty.Bag_Size << "  背包负重" << *Promenade.m_roleproperty.BAG_W << " / " << *Promenade.m_roleproperty.BAG_W_MAX << std::endl;
+	std::cout << "ID:" << std::hex << *Promenade.m_roleproperty.Object.ID << std::dec << std::endl;
+	// 输出元神装备信息
 	for (auto i = 0; i < 21; i++)
 	{
-		if (!(*Promenade.m_euip[i].ID))continue;
-		s.Format("%d :%s 耐久:%d/%d", i, Promenade.m_euip[i].pName, *(Promenade.m_euip[i].Use_Num), *(Promenade.m_euip[i].Use_Num_Max));
-		AppendText(m_edit2, s);
+		if (!(*Promenade.m_euip[i].ID)) continue;
+		std::cout << i << " :" << Promenade.m_euip[i].pName << " 耐久:" << *(Promenade.m_euip[i].Use_Num) << "/" << *(Promenade.m_euip[i].Use_Num_Max) << std::endl;
 	}
-	Promenade.m_roleproperty.Object.Distance = mfun.caclDistance(*r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y, *Promenade.m_roleproperty.Object.X, *Promenade.m_roleproperty.Object.Y);
-	s.Format("距主体距离:%f", Promenade.m_roleproperty.Object.Distance);
-	AppendText(m_edit2, s);
 
+	// 计算并输出元神与主体的距离
+	Promenade.m_roleproperty.Object.Distance = mfun.caclDistance(*r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y, *Promenade.m_roleproperty.Object.X, *Promenade.m_roleproperty.Object.Y);
+	std::cout << "距主体距离:" << Promenade.m_roleproperty.Object.Distance << std::endl;
 }
 //int
 //WSAAPI
@@ -570,139 +549,108 @@ void CTestDlg::OnBnClickedButton1()
 //}
 
 //  遍历周围对象 地面 怪物NPC
+
 void CTestDlg::OnBnClickedButton2()
 {
 	r.init();
-	CString s;
-	if (!r.Get_Envionment(m_obj.p_pets, m_obj.p_npcs, m_obj.p_monster, m_obj.p_players))
-	{
-		s.Format("遍历周围错误：\n");
-		AppendText(m_edit2, s);
-		return;
-	}	
-	if (!r.Get_Ground(m_obj.p_ground))
-	{
-		s.Format("遍历地面错误：\n");
-		AppendText(m_edit2, s);
+	if (!r.Get_Envionment(m_obj.p_pets, m_obj.p_npcs, m_obj.p_monster, m_obj.p_players)){
+		std::cerr<<"遍历周围错误："<<std::endl;
 		return;
 	}
+
+	if (!r.Get_Ground(m_obj.p_ground)){
+		std::cerr << "遍历地面错误：" << std::endl;
+		return;
+	}
+
 	m_obj.init();
-	s.Format("周围对象列表：\r\n怪物：\n");
-	AppendText(m_edit2, s);
-	for (size_t i = 0; i < m_obj.m_monster.size(); i++)
-	{
-		s.Format("指针:%x  %s ID: %x, 坐标(x,y)：%d, %d   距离：%.2f\n", (DWORD)m_obj.m_monster[i].pName-0x10,
-			m_obj.m_monster[i].pName,
-			*(m_obj.m_monster[i].ID),
-			*(m_obj.m_monster[i].X),
-			*(m_obj.m_monster[i].Y),
-			mfun.caclDistance(*(r.m_roleproperty.Object.X), *(r.m_roleproperty.Object.Y), *(m_obj.m_monster[i].X), *(m_obj.m_monster[i].Y)));
-		AppendText(m_edit2, s);
-	}
-	s.Format("\r\n玩家：\n");
-	AppendText(m_edit2, s);
-	for (size_t i = 0; i < m_obj.m_players.size(); i++)
-	{
-		s.Format("指针:%x  %s ID: %x, 坐标(x,y)：%d, %d   距离：%.2f\n", (DWORD)m_obj.m_players[i].pName - 0x10,
-			m_obj.m_players[i].pName,
-			*(m_obj.m_players[i].ID),
-			*(m_obj.m_players[i].X),
-			*(m_obj.m_players[i].Y),
-			mfun.caclDistance(*(r.m_roleproperty.Object.X), *(r.m_roleproperty.Object.Y), *(m_obj.m_players[i].X), *(m_obj.m_players[i].Y)));
-		AppendText(m_edit2, s);
-	}
 
-	s.Format("\r\n宝宝：\n");
-	AppendText(m_edit2, s);
-	for (size_t i = 0; i < m_obj.m_pets.size(); i++)
-	{
-		s.Format("指针:%x  %s ID: %x, 坐标(x,y)：%d, %d   距离：%.2f\n", (DWORD)m_obj.m_pets[i].pName - 0x10,
-			m_obj.m_pets[i].pName,
-			*(m_obj.m_pets[i].ID),
-			*(m_obj.m_pets[i].X),
-			*(m_obj.m_pets[i].Y),
-			mfun.caclDistance(*(r.m_roleproperty.Object.X), *(r.m_roleproperty.Object.Y), *(m_obj.m_pets[i].X), *(m_obj.m_pets[i].Y)));
-		AppendText(m_edit2, s);
-	}
-	s.Format("\r\nNPC：\n");
-	AppendText(m_edit2, s);
-	for (size_t i = 0; i < m_obj.m_npcs.size(); i++)
-	{
-		s.Format("指针:%x  %s ID: %x, 坐标(x,y)：%d, %d   距离：%.2f\n", (DWORD)m_obj.m_npcs[i].pName - 0x10,
-			m_obj.m_npcs[i].pName,
-			*(m_obj.m_npcs[i].ID),
-			*(m_obj.m_npcs[i].X),
-			*(m_obj.m_npcs[i].Y),
-			mfun.caclDistance(*(r.m_roleproperty.Object.X), *(r.m_roleproperty.Object.Y), *(m_obj.m_npcs[i].X), *(m_obj.m_npcs[i].Y)));
-		AppendText(m_edit2, s);
-	}
+	auto printEntityInfo = [&](const auto& entities, const std::string& label) {
+		std::cout << "\n" << label << "：" << std::endl;
+		for (const auto& entity : entities)
+		{
+			std::cout << "指针: " << std::hex << std::setw(8) << std::setfill('0')
+				<< reinterpret_cast<uintptr_t>(entity.pName) - 0x10
+				<< "  " << entity.pName
+				<< " ID: " << std::hex << *(entity.ID)
+				<< ", 坐标(x,y)："
+				<< std::dec << *(entity.X) << ", " << *(entity.Y)
+				<< "   距离："
+				<< std::fixed << std::setprecision(2)
+				<< mfun.caclDistance(*(r.m_roleproperty.Object.X), *(r.m_roleproperty.Object.Y),
+					*(entity.X), *(entity.Y))
+				<< std::endl;
+		}
+		};
 
-	s.Format("\r\n地面：\n");
-	AppendText(m_edit2, s);
-	for (size_t i = 0; i < m_obj.m_ground.size(); i++)
-	{
-		s.Format(" %s : %d/%d\n", m_obj.m_ground[i].pName, *m_obj.m_ground[i].X, *m_obj.m_ground[i].Y);
-		AppendText(m_edit2, s);
-	}
+	printEntityInfo(m_obj.m_monster, "怪物");
+	printEntityInfo(m_obj.m_players, "玩家");
+	printEntityInfo(m_obj.m_pets, "宝宝");
+	printEntityInfo(m_obj.m_npcs, "NPC");
 
+	std::cout << "\n地面：" << std::endl;
+	for (const auto& ground : m_obj.m_ground)
+	{
+		std::cout << " " << ground.pName
+			<< " : " << *ground.X
+			<< "/" << *ground.Y
+			<< std::endl;
+	}
 }
 
 // TODO: 技能遍历
 void CTestDlg::OnBnClickedButton3()
 {
 	r.init();
-	m_skill.skillBase = (DWORD)r.m_roleproperty.p_Skill_Base;
-	CString s;
+	m_skill.skillBase = reinterpret_cast<DWORD>(r.m_roleproperty.p_Skill_Base);
 	if (!m_skill.init())
 	{
-		s.Format("遍历技能错误：\n");
-		AppendText(m_edit2, s);
+		std::cerr << "遍历技能错误!" << std::endl;
 		return;
 	}
-	s.Format("技能：\n");
-	AppendText(m_edit2, s);
 
+	std::cout << "技能：" << std::endl;
 	for (size_t i = 0; i < m_skill.m_skillList.size(); i++)
 	{
-		s.Format("%s  等级:%d  ID: %d\n", m_skill.m_skillList[i].pName, *(m_skill.m_skillList[i].level), *(m_skill.m_skillList[i].ID));
-		AppendText(m_edit2, s);
+		std::cout << m_skill.m_skillList[i].pName
+			<< "  等级:" << *(m_skill.m_skillList[i].level)
+			<< "  ID: " << *(m_skill.m_skillList[i].ID)
+			<< std::endl;
 	}
-
 }
 
 // TODO: 背包遍历
 void CTestDlg::OnBnClickedButton8()
 {
-	if (!r.init())return;
-	CString s;
+	if (!r.init()) return;
+
 	r_bag.maxSize = *r.m_roleproperty.Bag_Size;
-	r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
-	if(!r_bag.init())
+	r_bag.bagBase = reinterpret_cast<DWORD>(r.m_roleproperty.p_Bag_Base);
+
+	if (!r_bag.init())
 	{
-		s.Format("遍历背包错误：\n");
-		AppendText(m_edit2, s);
+		std::cout << "遍历背包错误：" << std::endl;
 		return;
 	}
-	s.Format("大小:%d   剩余: %d\n", r_bag.maxSize, r_bag.getBagSpace());
-	AppendText(m_edit2, s);
 
-	for (size_t i=0;i<r_bag.maxSize;i++)
+	std::cout << "大小: " << r_bag.maxSize << "   剩余: " << r_bag.getBagSpace() << std::endl;
+
+	for (size_t i = 0; i < r_bag.maxSize; i++)
 	{
 		if (*(r_bag.m_bag[i].ID))
 		{
+			std::cout << "第" << i << "格: " << r_bag.m_bag[i].pName
+				<< "   ID: " << std::hex << std::setw(8) << std::setfill('0') << *r_bag.m_bag[i].ID
+				<< " 处理方式: " << std::dec << r_bag.m_bag[i].howProcess;
 
-			s.Format("第%d格:%s   ID: %x 处理方式:%d", i, r_bag.m_bag[i].pName, *r_bag.m_bag[i].ID, r_bag.m_bag[i].howProcess);
-			AppendText(m_edit2, s);
-			if (r_bag.m_bag[i].howProcess==4)
+			if (r_bag.m_bag[i].howProcess == 4)
 			{
-				s.Format("%d个\n", r_bag.m_bag[i].remainNumbers);
+				std::cout << " " << r_bag.m_bag[i].remainNumbers << "个";
 			}
-			s.Format("\n");
-			AppendText(m_edit2, s);		
+
+			std::cout << std::endl;
 		}
 	}
-
-
 }
 
 //函数功能:选择打怪目标 参数:攻击怪物列表 返回值：选中怪物对象指针
@@ -1030,9 +978,7 @@ UINT __cdecl CTestDlg::threadGoto(LPVOID p)
 UINT __cdecl CTestDlg::threadAttack(LPVOID p)
 {
 	CTestDlg* pDlg = (CTestDlg*)p;
-	CString s;
-	s.Format("打怪线程开始\n ");
-	AppendText(pDlg->m_edit2, s);
+	std::cout<<"打怪线程开始 "<<std::endl;
 	mfun.start_end_AutoAttack(pDlg->tflag_attack);
 	DWORD* pt = mfun.getTargetP(r);
 	while (pDlg->tflag_attack)
@@ -1060,18 +1006,15 @@ UINT __cdecl CTestDlg::threadAttack(LPVOID p)
 	}
 	mfun.start_end_AutoAttack(pDlg->tflag_attack);
 	shareCli.m_pSMAllData->m_sm_data[shareindex].cscript = std::string("空闲");
-	s.Format("打怪线程停止\n");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "打怪线程停止 " << std::endl;
 	return 0;
 }
 
 /*包裹处理*/
 UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 {
-	CString s;
 	CTestDlg* pDlg = (CTestDlg*)p;
-	s.Format("处理包裹线程开始\n ");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "处理包裹线程开始 " << std::endl;
 	while (pDlg->tflag_processBag)
 	{
 			pDlg->AutoRecvGoods();
@@ -1115,25 +1058,21 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 		}
 		Sleep(2000);
 	}
-	s.Format("处理包裹线程停止\n");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "处理包裹线程停止 " << std::endl;
 	return 0;
 }
 
 /*智能闪避线程*/
 UINT __cdecl CTestDlg::threadAutoAvoidMon(LPVOID p)
 {
-	CString s;
 	CTestDlg* pDlg = (CTestDlg*)p;
-	s.Format("智能闪避线程开始\n ");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "智能闪避线程开始 " << std::endl;
 	while (pDlg->tflag_autoavoid)
 	{
 		pDlg->AutoAvoidMonsters();
 		Sleep(2000);
 	}
-	s.Format("智能闪避线程停止\n");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "智能闪避线程停止 " << std::endl;
 	return 0;
 }
 
@@ -1142,8 +1081,7 @@ UINT __cdecl CTestDlg::threadPickup(LPVOID p)
 {
 	CString s;
 	CTestDlg* pDlg = (CTestDlg*)p;
-	s.Format("捡物线程开始");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "捡物线程开始 " << std::endl;
 	while (pDlg->tflag_pickup)
 	{
 		std::vector<GROUND_GOODS> need2pick_list = mfun.sort_groud_goods(r, pDlg->pick_goods_list);
@@ -1155,7 +1093,7 @@ UINT __cdecl CTestDlg::threadPickup(LPVOID p)
 			{
 				pDlg->m_threadAttack->SuspendThread();
 				s.Format("正在拾取物品:%s 坐标：%d,%d", pick_temp.pName, *pick_temp.X, *pick_temp.Y);
-				AppendText(pDlg->m_edit2, s);
+				std::cout << s << std::endl;
 				int pick_try_accounts = 0;
 				do
 				{
@@ -1183,8 +1121,7 @@ UINT __cdecl CTestDlg::threadPickup(LPVOID p)
 		}
 		Sleep(1000);
 	}
-	s.Format("捡物线程停止");
-	AppendText(pDlg->m_edit2, s);
+	std::cout << "捡物线程停止 " << std::endl;
 	return 0;
 }
 
@@ -1197,6 +1134,10 @@ void CTestDlg::OnBnClickedButton9()
 	r_bag.maxSize = *r.m_roleproperty.Bag_Size;
 	r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
 	r_bag.init();
+
+	std::cerr << "cerr test message!" << std::endl;
+std::cout << "cout test message!" << std::endl;	
+
 	//m_skill.skillBase = (DWORD)r.m_roleproperty.p_Skill_Base;
 	//m_skill.init();
 	//m_team.team_Base = r.m_roleproperty.Team_pointer;
@@ -1257,14 +1198,14 @@ void CTestDlg::OnBnClickedButton4()
 	m_team.team_Base = r.m_roleproperty.Team_pointer;
 	m_team.init();
 	CString s;
-	s.Format("%p \n", m_team.team_Base);
-	AppendText(m_edit2, s);
+	s.Format("队伍指针:%p", m_team.team_Base);
+	std::cout<<s<<std::endl;
 	if (m_team.m_team_list.size())
 	{
 		for (size_t i = 0; i < m_team.m_team_list.size(); i++)
 		{
 			s.Format("名字:%s NEXT:%p Pre:%p \n", m_team.m_team_list[i].pName, m_team.m_team_list[i].Next, m_team.m_team_list[i].Previous);
-			AppendText(m_edit2, s);
+			std::cout << s << std::endl;
 		}
 	}
 }
@@ -1274,7 +1215,6 @@ void CTestDlg::OnBnClickedChkTeam()
 {
 	// TODO: 组队CHECK单机事件
 	pBtn = (CButton*)GetDlgItem(IDC_CHK_TEAM);  //获得组队复选框控件的句柄
-	CString s;
 
 	if (pBtn->GetCheck()&&(m_team_check_id==0))
 	{
@@ -1291,8 +1231,7 @@ void CTestDlg::OnBnClickedChkTeam()
 			else//队长 逐个删除队员之后再关闭队伍开关
 			{
 				shareCli.m_pSMAllData->team_info = 0;
-				s.Format("你是队长,正在逐个关闭队员队伍开关,稍等10s");
-				AppendText(m_edit2, s);
+				std::cout << "你是队长,正在逐个关闭队员队伍开关,稍等10s" << std::endl;
 			}
 		}
 	}
@@ -1306,9 +1245,7 @@ void CTestDlg::AutoAvoidMonsters()
 	// 获取周围怪物信息
 	if (!r.Get_Envionment(m_obj.p_pets,m_obj.p_npcs,m_obj.p_monster,m_obj.p_players))
 	{
-		CString s;
-		s.Format("获取周围怪物信息错误：\n");
-		AppendText(m_edit2, s);
+		std::cout << "获取周围怪物信息错误" << std::endl;
 		return;
 	}
 	m_obj.init();
@@ -1465,7 +1402,6 @@ bool rec_flag = true;
 void CTestDlg::OnBnClickedBtnRecnpc()
 {
 	CButton* pButton = (CButton*)GetDlgItem(IDC_BTN_RECNPC);
-	CString s;
 	if (rec_flag)
 	{
 		std::string scriptpath = (std::string)shareCli.m_pSMAllData->currDir + "script";
@@ -1473,8 +1409,7 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 		if (hook_npc_cmd.hookReg(0xCAC543, 10, &CallRecord))
 		{
 			rec_flag = false;
-			s.Format("开始录制NPC对话，存储到/script/(角色名字).lua文件中");
-			AppendText(m_edit2, s);
+			std::cout << "开始录制NPC对话，存储到/script/(角色名字).lua文件中" << std::endl;
 			//添加按钮修改名字的代码
 			if (pButton != nullptr)
 			{
@@ -1490,8 +1425,7 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 		if (pButton != nullptr)
 		{
 			pButton->SetWindowText(_T("录制NPC"));
-			s.Format("停止录制NPC对话");
-			AppendText(m_edit2, s);
+			std::cout << "停止录制NPC对话" << std::endl;
 		}
 	}
 }
@@ -1500,11 +1434,13 @@ void CTestDlg::OnBnClickedBtnRecnpc()
 //lua脚本测试
 void CTestDlg::OnBnClickedBtnLuatst()
 {
+	
 	if (m_EditLuaPath.IsEmpty())
 	{
 		MessageBox(_T("请选择Lua文件！"), _T("错误"), MB_ICONERROR);
 		return;
 	}
+	std::cout<<"test!!!!!!!"<<std::endl;
 	// 准备参数
 	std::string scriptPath = m_EditLuaPath.GetString();
    // 定义错误回调函数
@@ -1566,9 +1502,6 @@ void CTestDlg::OnBnClickedBtnBagproc()
 	}
 }
 
-
-
-
 //浏览选择Lua脚本文件
 void CTestDlg::OnBnClickedBtnChooseLuaFile()
 {
@@ -1587,4 +1520,19 @@ void CTestDlg::OnBnClickedBtnChooseLuaFile()
 	else
 		return;
 
+}
+
+//重设edit颜色
+HBRUSH CTestDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+// 设置 Edit 控件的文本颜色
+	//if (pWnd->GetDlgCtrlID() == IDC_EDIT2) // IDC_EDIT1 是 Edit 控件的 ID
+	//{
+	//	pDC->SetTextColor(RGB(147, 112, 219)); // 设置文本颜色为蓝紫色
+	//	pDC->SetBkMode(TRANSPARENT);       // 设置背景为透明
+	//}
+
+	return hbr;
 }
