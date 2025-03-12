@@ -129,11 +129,11 @@ public:
 	bool runTo(int x, int y){ return mfun.Run_or_Step_To(x, y,2);}//跑到目标点 一次2格
     bool walkTo(int x, int y) { return mfun.Run_or_Step_To(x, y, 1); }//走到目标点 一次1格
     bool gotoMapXY(int x, int y) { return mfun.CurrentMapMove(x, y); }//寻路到地图坐标
-	bool startAttack() { return mfun.start_end_AutoAttack(1); }//开始战斗
-	bool endAttack() { return mfun.start_end_AutoAttack(0); }//结束战斗
 	float getDistance(int x, int y) { return mfun.caclDistance(getCurrentX(), getCurrentY(), x, y); }	//计算与坐标(x,y)的距离 ,直线距离 无法计算实际距离
 	bool interactNPC(const std::string& npcName, const std::string& command);//对话NPC 并选择一个命令
 	bool chooseNpcCommand(const std::string& command) { return mfun.ChooseCmd(command.c_str()); }//选择NPC对话
+	void startAttack();//开始战斗
+	void endAttack(); //结束战斗
 
 private:
 	//买卖存仓辅助函数

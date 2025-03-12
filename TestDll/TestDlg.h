@@ -96,7 +96,31 @@ protected:
 
 public:
 	afx_msg void OnBnClickedBtnLuatst();
-
+	void start_attack() {
+		if (!m_threadAttack)
+		{
+			tflag_attack = true;
+			m_threadAttack = AfxBeginThread(threadAttack, (LPVOID)this);
+			if (*r.m_roleproperty.Job != 0)tflag_autoavoid = true;// 不是战士时开启智能闪避
+			else tflag_autoavoid = false;
+			// 设置智能闪避线程，用于自动躲避怪物
+			if (tflag_autoavoid && (m_threadAutoAvoid == NULL))m_threadAutoAvoid = AfxBeginThread(threadAutoAvoidMon, (LPVOID)this);	
+		}
+	};
+	void end_attack() {
+		if (m_threadAttack)
+		{
+			tflag_attack = false;
+			WaitForSingleObject(m_threadAttack, 60000);
+			m_threadAttack = NULL;
+			if (m_threadAutoAvoid != NULL)
+			{
+				tflag_autoavoid = false;
+				WaitForSingleObject(m_threadAutoAvoid, 60000);
+				m_threadAutoAvoid = NULL;
+			}
+		}
+	};
 
 public:
 	DWORD mPid;

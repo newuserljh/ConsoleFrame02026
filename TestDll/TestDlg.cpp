@@ -24,15 +24,15 @@
 // CTestDlg 对话框
 
 
-std::unique_ptr<lua_interface> g_lua;
-std::unique_ptr<scriptManager> g_mgr;
-// 显式初始化函数
+std::unique_ptr<lua_interface> g_lua; //luainterface智能指针
+std::unique_ptr<scriptManager> g_mgr; //scriptManager 脚本管理器智能指针
+// 显式初始化智能指针
 void init_global_objects() {
 	g_lua = std::make_unique<lua_interface>();
 	g_mgr = std::make_unique<scriptManager>(g_lua.get());
 }
 
-// 显式销毁
+// 显式销毁智能指针
 void cleanup_global_objects() {
 	g_mgr.reset();
 	g_lua.reset();
@@ -979,32 +979,35 @@ UINT __cdecl CTestDlg::threadAttack(LPVOID p)
 {
 	CTestDlg* pDlg = (CTestDlg*)p;
 	std::cout<<"打怪线程开始 "<<std::endl;
-	mfun.start_end_AutoAttack(pDlg->tflag_attack);
-	DWORD* pt = mfun.getTargetP(r);
+	mfun.start_end_AutoAttack(pDlg->tflag_attack);	
+	auto poision_skill_ID = m_skill.getSkillId("施毒术");
 	while (pDlg->tflag_attack)
 	{
 		shareCli.m_pSMAllData->m_sm_data[shareindex].cscript = std::string("打怪");
 		//Auto_Attack(pDlg, pDlg->attack_monlist, pDlg->s_ID);
 		mfun.start_end_AutoAttack(pDlg->tflag_attack);
 		Sleep(100);
-		pt = mfun.getTargetP(r);
-		if (nullptr != pt)//判断是否有目标
+		DWORD* pt= mfun.getTargetP(r);
+		if (nullptr != pt&& poision_skill_ID)//判断是否有目标
 		{
-			if (m_skill.getSkillId("施毒术") && (r_bag.ifHasPoison() > 0))//判断是否有施毒术和毒药
+			auto t_mon= MONSTER_PROPERTY(pt);
+			if (r_bag.ifHasPoison() > 0)//判断是否有毒药
 			{
-
-					if (*(BYTE*)((DWORD)pt + 0x34b) < 0x40)//是否中毒 0没毒，0x40红毒，0x80绿毒，0xc0红绿毒,
+					if (*t_mon.IsPosion < 0x40)//是否中毒 0没毒，0x40红毒，0x80绿毒，0xc0红绿毒,
 					{
 						mfun.start_end_AutoAttack(false);
-						Sleep(500);
-						mfun.presskey(::GetCurrentProcessId(), VK_F2);
+						Sleep(900);
+						mfun.useSkillTo(poision_skill_ID, *t_mon.X,*t_mon.Y,*t_mon.ID);
 						Sleep(ATTACK_SLEEP);
-						mfun.presskey(::GetCurrentProcessId(), VK_F2);
+						mfun.useSkillTo(poision_skill_ID, *t_mon.X, *t_mon.Y, *t_mon.ID);
+						Sleep(100);
+						mfun.start_end_AutoAttack(pDlg->tflag_attack);
 					}
 			}
 		}
+		Sleep(2400);
 	}
-	mfun.start_end_AutoAttack(pDlg->tflag_attack);
+	mfun.start_end_AutoAttack(false);
 	shareCli.m_pSMAllData->m_sm_data[shareindex].cscript = std::string("空闲");
 	std::cout << "打怪线程停止 " << std::endl;
 	return 0;
@@ -1124,8 +1127,6 @@ UINT __cdecl CTestDlg::threadPickup(LPVOID p)
 	std::cout << "捡物线程停止 " << std::endl;
 	return 0;
 }
-
-
 
 // TODO: 功能测试
 void CTestDlg::OnBnClickedButton9()
@@ -1295,7 +1296,7 @@ void CTestDlg::AutoAvoidMonsters()
 	
 }
 
-/*定时器 1.组队  */
+/*定时器 1.组队  2.判断角色死亡 3.(一次性)初始化LUA环境*/
 void CTestDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
@@ -1309,15 +1310,17 @@ void CTestDlg::OnTimer(UINT_PTR nIDEvent)
 		break;
 	case 99999:
 	{
-		init_global_objects();
-		std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
-		// 启动脚本（假设用户脚本为script.lua）
-		// 在 Lua 状态中设置全局变量 stopScript
-		luaStopFlag.store(false);//重置停止标志
-		lua_pushboolean(g_mgr.get()->L, luaStopFlag.load());
-		lua_setglobal(g_mgr.get()->L, "luaStopFlag");
-		g_mgr.get()->start(scriptPath);
 		KillTimer(99999);
+		init_global_objects();
+		{
+			// 在 Lua 状态中设置全局变量 luaStopFlag,运行初始化脚本
+			std::string scriptPath = (std::string)shareCli.m_pSMAllData->currDir + "script\\init_execute_env.lua";
+			luaStopFlag.store(false);//重置停止标志
+			lua_pushboolean(g_mgr.get()->L, luaStopFlag.load());
+			lua_setglobal(g_mgr.get()->L, "luaStopFlag");
+			g_mgr.get()->start(scriptPath);
+		
+		}
 	}
 		break;
 
@@ -1332,13 +1335,6 @@ void CTestDlg::OnTimer(UINT_PTR nIDEvent)
 // TODO: 使用内置自动打怪挂机
 void CTestDlg::OnBnClickedBtnGj()
 {
-	r.init();
-	r_bag.maxSize = *r.m_roleproperty.Bag_Size;
-	r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
-	r_bag.init();
-	m_skill.skillBase = (DWORD)r.m_roleproperty.p_Skill_Base;
-	m_skill.init();
-	m_team.team_Base = r.m_roleproperty.Team_pointer;
 	CButton* pButton = (CButton*)GetDlgItem(IDC_BTN_GJ);
 	if (m_threadAttack==NULL)
 	{

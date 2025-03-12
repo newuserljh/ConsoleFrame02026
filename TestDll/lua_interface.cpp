@@ -2,6 +2,8 @@
 #include "lua_interface.h"
 #include "TestDlg.h"
 
+extern CTestDlg* pDlg;
+
 
 void lua_interface::registerClasses(lua_State* L)
 {
@@ -58,8 +60,8 @@ void lua_interface::registerClasses(lua_State* L)
 		.addFunction("RecovryGoods_To_Gold", &gamecall::RecovryGoods_To_Gold)
 		//.addFunction("SubmitInputbox", &gamecall::SubmitInputbox)
 		.endClass()
-		
-	
+
+
 
 		.beginClass<lua_interface>("LuaInterface") // 注册本类方法到 Lua
 		.addConstructor<void(*)(void)>()
@@ -100,12 +102,13 @@ void lua_interface::registerClasses(lua_State* L)
 		.addFunction("跑到目标点", &lua_interface::runTo)
 		.addFunction("走到目标点", &lua_interface::walkTo)
 		.addFunction("寻路到", &lua_interface::gotoMapXY)
-		.addFunction("开始战斗", &lua_interface::startAttack)
-		.addFunction("停止战斗", &lua_interface::endAttack)
 		.addFunction("计算距离", &lua_interface::getDistance)
 		.addFunction("对话NPC选择命令", &lua_interface::interactNPC) //交互NPC并选择一个命令
 		.addFunction("选择命令", &lua_interface::chooseNpcCommand)
+		.addFunction("开始战斗", &lua_interface::startAttack)
+		.addFunction("结束战斗", &lua_interface::endAttack)
 		.endClass();
+
 }
 
 
@@ -393,6 +396,15 @@ bool lua_interface::sellItems(const std::vector<DWORD>& bagIndexSell, int npcId)
 }
 
 /*封装游戏函数------------------------------------------------------------------------------------------------*/
+//开始结束战斗
+void lua_interface::startAttack()
+{
+	pDlg->start_attack();
+}
+void lua_interface::endAttack()
+{
+	pDlg->end_attack();
+}
 
 //提交赏金令牌
 void lua_interface::applySJLP()

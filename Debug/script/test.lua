@@ -1,11 +1,4 @@
-print("LuaSocket 版本:", socket._VERSION)
-
-if sleep then 
- 	print("success")
-else
-  print("faile")
-end       
-
-
-
-print("200")
+game:开始战斗()
+print("12211212")
+sleep(6000)
+game:结束战斗()
