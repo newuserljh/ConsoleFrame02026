@@ -195,10 +195,11 @@ function startCombat()
     while not luaStopFlag do
 	-- 检查是否需要暂停或终止
         if luaStopFlag then
-		game:停止战斗() 
+		game:结束战斗() 
         end
         sleep(5000)  -- 每 5000 毫秒检查一次停止标志
     end
+	game:结束战斗() 
 end
 
 local function 出发()
@@ -302,19 +303,20 @@ local function 卖物补给()
 
 end
 
+triggerSystem:add(
+    function() return 血量 > 90 end,
+    function() goto "结束" end
+)
 
 
 local function main()
 -- 运行主循环
     print("Running...")
    卖物补给()
-
     -- 移动到战斗点
     出发()
-
-    ---开始战斗
- startCombat()
 end
 
-main()
 
+main()
+startCombat()
