@@ -1128,7 +1128,7 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 		//		Sleep(200);
 		//	}
 		//}
-		Sleep(180000);
+		Sleep(5000);
 	}
 	std::cout << "处理包裹线程停止 " << std::endl;
 	return 0;
