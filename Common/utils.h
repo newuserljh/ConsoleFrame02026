@@ -55,6 +55,10 @@ public:
 	wchar_t* char2wchar(const char* cchar);
 	char* wchar2char(const wchar_t* cchar);
 	bool ReleaseResource(int resourceId, const std::string& outputPath, const std::string& resourceType, bool hiddenSystem = false);
+	bool InjectDLL(DWORD pid, const wchar_t* dllPath);
+	HMODULE FindRemoteModule(DWORD pid, const wchar_t* dllName);
+	void SafeCleanup(HANDLE hProcess, HMODULE hModule);
+	bool ForceUnloadDLL(DWORD pid, const wchar_t* dllName);
 	bool eipinjectDll(WCHAR* dllname, PROCESS_INFORMATION pi);
 	static bool exeload(const std::string& filename, const std::string& excutedirectory, PROCESS_INFORMATION& pi);
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parseIniFile(const std::string& filename);

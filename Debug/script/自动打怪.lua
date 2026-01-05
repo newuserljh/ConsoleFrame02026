@@ -303,10 +303,7 @@ local function 卖物补给()
 
 end
 
-triggerSystem:add(
-    function() return 血量 > 90 end,
-    function() goto "结束" end
-)
+
 
 
 local function main()

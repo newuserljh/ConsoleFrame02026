@@ -19,3 +19,4 @@ NPC ID: cfdceb0  @west1
 NPC ID: cfc4c40  @main1
 NPC ID: cfc4c40  @ttta
 NPC ID: cfc4c40  @ta
+NPC ID: c84e470  @givepai

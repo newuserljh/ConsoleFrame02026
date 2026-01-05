@@ -237,32 +237,11 @@ BOOL CTestDlg::OnInitDialog()
 	//HOOK连接服务器失败代码
 	hook.hookReg(0x5F8B69, 5, CallTest);
 
-	//CloseHandle(::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadLogin), NULL, NULL, NULL));
+	CloseHandle(::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadLogin), NULL, NULL, NULL));
 
 	//登录成功之后设置 启动通讯线程,定时验证存活消息
-	//CloseHandle(::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadAlive), NULL, NULL, NULL));
+	CloseHandle(::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadAlive), NULL, NULL, NULL));
 
-			//登陆成功 初始化
-	r.init();
-	pDlg->SetTimer(22222, 5000, NULL);	//设置定时器5s 检测角色是否死亡
-	//初始化背包  技能 队伍
-	m_skill.skillBase = (DWORD)r.m_roleproperty.p_Skill_Base;
-	m_skill.init();
-	m_team.team_Base = r.m_roleproperty.Team_pointer;
-	pDlg->init_team(); //包含了组队的定时器 SetTimer(11111, 30000, NULL)
-
-	std::string usercfgpath = (std::string)shareCli.m_pSMAllData->currDir + "cfg\\" + r.m_roleproperty.Object.pName;
-	CreateDirectory(usercfgpath.c_str(), NULL);// 创建 角色名 文件夹（存放角色的配置
-	if (tools::getInstance()->fileIsexist(usercfgpath + "\\" + "storeANDsell.ini") == false)
-	{
-		std::string defaultpath = (std::string)shareCli.m_pSMAllData->currDir + "cfg\\default\\storeANDsell.ini";
-		tools::getInstance()->copyFile(defaultpath, usercfgpath + "\\storeANDsell.ini");
-	}
-	bag::initGoodsProcWayList(); // 初始化 存储和出售物品的配置
-	r_bag.maxSize = *r.m_roleproperty.Bag_Size;
-	r_bag.bagBase = (DWORD)r.m_roleproperty.p_Bag_Base;
-	r_bag.init();
-	pDlg->SetTimer(99999, 500, NULL);//用于初始智能指针
 
 
 	//hookAPI(WSARecv, MyWSARecv);
@@ -1041,81 +1020,59 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 	std::cout << "处理包裹线程开始 " << std::endl;
 	while (pDlg->tflag_processBag)
 	{
-		////打开快捷回收
-		//try
-		//{
-		//	_asm
-		//	{
-		//		pushad
-		//		mov ecx, dword ptr ds : [CALL_ECX]
-		//		mov edi, 0x6EE710
-		//		call edi
-		//		popad
-		//	}
-		//}
-		//catch (...) {}
-		//Sleep(200);
-		//mfun.ChooseCmd("@一键回收");
-		//Sleep(200);
-		//if (r_bag.caclGoodsNumber("RMB兑换卷") > 0) {
-		//			mfun.useGoods(r_bag.getGoodsIndex("RMB兑换卷"));
-		//			Sleep(200);
-		//		}
-		//mfun.ChooseCmd("@回收逆魔装备");
-		//Sleep(200);
-		//mfun.ChooseCmd("@回收将军装备");
-		//Sleep(200);
-		//mfun.ChooseCmd("@回收技能书籍");
-		//Sleep(200);
+		//打开快捷回收
+		try
+		{
+			_asm
+			{
+				pushad
+				mov ecx, dword ptr ds : [CALL_ECX]
+				mov edi, 0x6EE710
+				call edi
+				popad
+			}
+		}
+		catch (...) {}
+		Sleep(200);
+		mfun.ChooseCmd("@一键回收");
+		Sleep(200);
+		if (r_bag.caclGoodsNumber("RMB兑换卷") > 0) {
+					mfun.useGoods(r_bag.getGoodsIndex("RMB兑换卷"));
+					Sleep(200);
+				}
+		mfun.ChooseCmd("@回收逆魔装备");
+		Sleep(200);
+		mfun.ChooseCmd("@回收将军装备");
+		Sleep(200);
+		mfun.ChooseCmd("@回收技能书籍");
+		Sleep(200);
 		//	pDlg->AutoRecvGoods();
-		if (r_bag.caclGoodsNumber("1积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("1积分卷"));
-			Sleep(200);
-		}
-		if (r_bag.caclGoodsNumber("2积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("2积分卷"));
-			Sleep(200);
-		}
-		if (r_bag.caclGoodsNumber("3积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("3积分卷"));
-			Sleep(200);
-		}
-			if (r_bag.caclGoodsNumber("1元宝") > 0) {
-				mfun.useGoods(r_bag.getGoodsIndex("1元宝"));
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("2元宝") > 0) {
-				mfun.useGoods(r_bag.getGoodsIndex("2元宝"));
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("5元宝") > 0) {
-				mfun.useGoods(r_bag.getGoodsIndex("5元宝"));
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("10元宝") > 0) {
-				mfun.useGoods(r_bag.getGoodsIndex("10元宝"));
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("3元宝") > 0)
-			{
-				mfun.useGoods(r_bag.getGoodsIndex("3元宝"));
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
-			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(一)")>0);
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("声望令牌(二)") > 0)
-			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(二)") > 0);
-				Sleep(200);
-			}
-			if (r_bag.caclGoodsNumber("声望令牌(三)") > 0)
-			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(三)") > 0);
-				Sleep(200);
-			}
+		//	if (r_bag.caclGoodsNumber("1个绑定元宝") > 0) {
+		//		mfun.useGoods(r_bag.getGoodsIndex("1个绑定元宝"));
+		//		Sleep(200);
+		//	}
+		//	if (r_bag.caclGoodsNumber("2个绑定元宝") > 0) {
+		//		mfun.useGoods(r_bag.getGoodsIndex("2个绑定元宝"));
+		//		Sleep(200);
+		//	}
+		//	if (r_bag.caclGoodsNumber("5个绑定元宝") > 0) {
+		//		mfun.useGoods(r_bag.getGoodsIndex("5个绑定元宝"));
+		//		Sleep(200);
+		//	}
+		//	if (r_bag.caclGoodsNumber("10个绑定元宝") > 0) {
+		//		mfun.useGoods(r_bag.getGoodsIndex("10个绑定元宝"));
+		//		Sleep(200);
+		//	}
+		//	if (r_bag.caclGoodsNumber("20个绑定元宝") > 0)
+		//	{
+		//		mfun.useGoods(r_bag.getGoodsIndex("20个绑定元宝"));
+		//		Sleep(200);
+		//	}
+		//	if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
+		//	{
+		//		mfun.useGoods(r_bag.getGoodsIndex("声望令牌(一)")>0);
+		//		Sleep(200);
+		//	}
 		//if (r_bag.getBagSpace() < 10)
 		//{
 		//	if (r_bag.caclGoodsNumber("强效太阳神水") > REMAIN_TAIYANG)

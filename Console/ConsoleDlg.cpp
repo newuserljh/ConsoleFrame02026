@@ -191,14 +191,17 @@ bool CConsoleDlg::initDlg()
 	//为tab添加两个页面
 	m_tabCtl.InsertItem(0, "账号");
 	m_tabCtl.InsertItem(1, "配置");
+	m_tabCtl.InsertItem(2, "游戏窗口控制台");
 
 	SetWindowText("游戏控制台框架：QQ424002200");
 
 	//创建两个对话框
 	m_accountDlg.Create(IDD_DLGACCOUNT , &m_tabCtl);
 	m_configDlg.Create(IDD_DLGCONFIG, &m_tabCtl);
+	m_gameconsoleDlg.Create(IDD_DLG_GAMECONSLE, &m_tabCtl);
 	m_accountDlg.SetParent(&m_tabCtl);
 	m_configDlg.SetParent(&m_tabCtl);
+	m_gameconsoleDlg.SetParent(&m_tabCtl);
 	//设定在tab内的显示范围
 	CRect rc;
 	m_tabCtl.GetClientRect(rc);
@@ -208,15 +211,16 @@ bool CConsoleDlg::initDlg()
 	rc.right -= 0;
 	m_accountDlg.MoveWindow(&rc);
 	m_configDlg.MoveWindow(&rc);
-
+	m_gameconsoleDlg.MoveWindow(&rc);
 	//保存对话框的指针
 	m_pDialog[0] = &m_accountDlg;
 	m_pDialog[1] = &m_configDlg;
-	
+	m_pDialog[2] = &m_gameconsoleDlg;
 	m_curSelTab = 0;
 
 	m_pDialog[0]->ShowWindow(SW_SHOW);
 	m_pDialog[1]->ShowWindow(SW_HIDE);
+	m_pDialog[2]->ShowWindow(SW_HIDE);
 
 	return true;
 }

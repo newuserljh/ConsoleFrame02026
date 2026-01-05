@@ -6,6 +6,7 @@
 #include "afxcmn.h"
 #include "AccountDlg.h"
 #include "ConfigDlg.h"
+#include "CGameConsole.h"
 #include "../Common/shareMemorySer.h"
 #include <memory>
 #include <thread>
@@ -39,7 +40,8 @@ public:
 
 	CAccountDlg m_accountDlg;
 	CConfigDlg m_configDlg;
-	CDialogEx*  m_pDialog[2];
+	CGameConsole m_gameconsoleDlg;
+	CDialogEx*  m_pDialog[3];
 
 
 private:

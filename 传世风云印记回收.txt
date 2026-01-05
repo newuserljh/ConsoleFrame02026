@@ -1,0 +1,37 @@
+
+
+
+@一键回收
+@回收逆魔装备
+@回收将军装备
+@回收天空装备
+@回收禁地装备
+@回收各类武器
+@回收技能书籍
+@回收逆魔装备
+@回收各类衣服
+
+006BC2 | 74 1C               | je woool.dat.6BC2D8               |
+006BC2 | 8B0D 08FB3501       | mov ecx,dword ptr ds:[135FB08]    | ecx:NtUserPeekMessage+C
+006BC2 | 68 00000200         | push 20000                        |
+006BC2 | 68 00000400         | push 40000                        |
+006BC2 | 68 67130000         | push 1367                         |
+006BC2 | E8 1AC9E7FF         | call woool.dat.538BF0             |
+006BC2 | EB 0B               | jmp woool.dat.6BC2E3              |
+006BC2 | 8B0D 10FB3501       | mov ecx,dword ptr ds:[135FB10]    | ecx:NtUserPeekMessage+C
+006BC2 | E8 2D240300         | call woool.dat.6EE710             | 打开快捷功能 仓库和回收
+006BC2 | C78424 B0020000 FFF | mov dword ptr ss:[esp+2B0],FFFFFF |
+006BC2 | 8D4C24 18           | lea ecx,dword ptr ss:[esp+18]     | ecx:NtUserPeekMessage+C
+006BC2 | E8 D9B7D4FF         | call woool.dat.407AD0             |
+006BC2 | B0 01               | mov al,1                          |
+006BC2 | E9 9C030000         | jmp woool.dat.6BC69A              |
+006BC2 | 395E 18             | cmp dword ptr ds:[esi+18],ebx     |
+006BC3 | 72 04               | jb woool.dat.6BC307               |
+006BC3 | 8B07                | mov eax,dword ptr ds:[edi]        |
+006BC3 | EB 02               | jmp woool.dat.6BC309              |
+006BC3 | 8BC7                | mov eax,edi                       |
+006BC3 | 6A 0E               | push E                            |
+006BC3 | 68 2CE6F100         | push woool.dat.F1E62C             | F1E62C:"@@openvitality"
+006BC3 | 50                  | push eax                          |
+
+

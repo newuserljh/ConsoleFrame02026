@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <TlHelp32.h>
 
 tools* tools::m_pInstance = nullptr;
 std::mutex tools::m_mutex;
@@ -537,6 +538,129 @@ std::string tools::GetCurrDir()
 	 return true;
  }
 
+ /*
+函数功能： 注入 DLL 到目标进程中
+参数1：注入目标进程PID
+参数2：dll路径
+返回值：
+*/
+ bool tools::InjectDLL(DWORD pid, const wchar_t* dllPath) {
+	 // 1. 获取目标进程句柄
+	 HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	 if (!hProcess) {
+		 std::cerr << "OpenProcess failed: " << GetLastError() << std::endl;
+		 return false;
+	 }
+
+	 // 2. 在目标进程分配内存
+	 SIZE_T pathSize = (wcslen(dllPath) + 1) * sizeof(wchar_t);
+	 LPVOID remoteMem = VirtualAllocEx(hProcess, NULL, pathSize, MEM_COMMIT, PAGE_READWRITE);
+	 if (!remoteMem) {
+		 CloseHandle(hProcess);
+		 std::cerr << "VirtualAllocEx failed: " << GetLastError() << std::endl;
+		 return false;
+	 }
+
+	 // 3. 写入DLL路径
+	 if (!WriteProcessMemory(hProcess, remoteMem, dllPath, pathSize, NULL)) {
+		 VirtualFreeEx(hProcess, remoteMem, 0, MEM_RELEASE);
+		 CloseHandle(hProcess);
+		 std::cerr << "WriteProcessMemory failed: " << GetLastError() << std::endl;
+		 return false;
+	 }
+
+	 // 4. 创建远程线程调用LoadLibrary
+	 LPTHREAD_START_ROUTINE loadLibAddr = (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+	 HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, loadLibAddr, remoteMem, 0, NULL);
+	 if (!hThread) {
+		 VirtualFreeEx(hProcess, remoteMem, 0, MEM_RELEASE);
+		 CloseHandle(hProcess);
+		 std::cerr << "CreateRemoteThread failed: " << GetLastError() << std::endl;
+		 return false;
+	 }
+
+	 // 5. 等待线程执行完成
+	 WaitForSingleObject(hThread, INFINITE);
+
+	 // 6. 清理资源
+	 DWORD exitCode;
+	 GetExitCodeThread(hThread, &exitCode);
+	 VirtualFreeEx(hProcess, remoteMem, 0, MEM_RELEASE);
+	 CloseHandle(hThread);
+	 CloseHandle(hProcess);
+
+	 return (exitCode != 0); // 返回是否成功加载DLL
+ }
+
+ /*
+函数功能： 查找目标DLL的模块句柄
+参数1：进程pid
+参数2：dll名字
+返回值：无
+*/
+ HMODULE tools::FindRemoteModule(DWORD pid, const wchar_t* dllName) {
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
+    if (hSnapshot == INVALID_HANDLE_VALUE) return NULL;
+
+    MODULEENTRY32W me32 = { sizeof(me32) };
+    HMODULE hModule = NULL;
+    if (Module32FirstW(hSnapshot, &me32)) {
+        do {
+            if (_wcsicmp(me32.szModule, dllName) == 0) {
+                hModule = me32.hModule;
+                break;
+            }
+        } while (Module32NextW(hSnapshot, &me32));
+    }
+    CloseHandle(hSnapshot);
+    return hModule;
+}
+
+ /*
+函数功能： 若DLL支持自定义卸载协议，可远程调用清理函数
+参数1：dll模块进程
+参数2：dll模块句柄
+返回值：无
+*/
+ void tools::SafeCleanup(HANDLE hProcess, HMODULE hModule) {
+	 LPVOID pCleanFunc = GetProcAddress(hModule, "DllStop");
+	 if (pCleanFunc) {
+		 HANDLE hThread = CreateRemoteThread(
+			 hProcess, NULL, 0,
+			 (LPTHREAD_START_ROUTINE)pCleanFunc, NULL, 0, NULL);
+		 WaitForSingleObject(hThread, 5000); // 等待清理完成
+		 CloseHandle(hThread);
+	 }
+ }
+
+ /*
+函数功能： 强制卸载DLL
+参数1：dll模块pid
+参数2：dll名字
+返回值：bool
+*/
+ bool tools::ForceUnloadDLL(DWORD pid, const wchar_t* dllName) {
+	 HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	 if (!hProcess) return false;
+
+	 HMODULE hModule = FindRemoteModule(pid, dllName);
+	 if (!hModule) {
+		 CloseHandle(hProcess);
+		 return false;
+	 }
+
+	 // 创建远程线程调用FreeLibrary
+	 LPTHREAD_START_ROUTINE pFreeLib = (LPTHREAD_START_ROUTINE)
+		 GetProcAddress(GetModuleHandle("kernel32.dll"), "FreeLibrary");
+	 HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, pFreeLib, hModule, 0, NULL);
+
+	 if (hThread) {
+		 WaitForSingleObject(hThread, INFINITE);
+		 CloseHandle(hThread);
+	 }
+	 CloseHandle(hProcess);
+	 return (hThread != NULL);
+ }
 
  /*
 函数功能： 劫持 EIP（指令指针寄存器）来注入 DLL 到目标进程中
