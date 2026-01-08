@@ -1039,6 +1039,7 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 {
 	CTestDlg* pDlg = (CTestDlg*)p;
 	std::cout << "处理包裹线程开始 " << std::endl;
+	int i_time = 0;
 	while (pDlg->tflag_processBag)
 	{
 		////打开快捷回收
@@ -1068,6 +1069,14 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 		//mfun.ChooseCmd("@回收技能书籍");
 		//Sleep(200);
 		//	pDlg->AutoRecvGoods();
+		if (i_time < 1000) //重置计时，防止计时过大溢出
+		{
+			i_time = i_time + 5;
+		}
+		else
+		{
+			i_time = 0;
+		}
 		if (r_bag.caclGoodsNumber("1积分卷") > 0) {
 			mfun.useGoods(r_bag.getGoodsIndex("1积分卷"));
 			Sleep(200);
@@ -1080,41 +1089,126 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 			mfun.useGoods(r_bag.getGoodsIndex("3积分卷"));
 			Sleep(200);
 		}
-			if (r_bag.caclGoodsNumber("1元宝") > 0) {
+		if (r_bag.caclGoodsNumber("1元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("1元宝"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("2元宝") > 0) {
+		if (r_bag.caclGoodsNumber("2元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("2元宝"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("5元宝") > 0) {
+		if (r_bag.caclGoodsNumber("5元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("5元宝"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("10元宝") > 0) {
+		if (r_bag.caclGoodsNumber("10元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("10元宝"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("3元宝") > 0)
+		if (r_bag.caclGoodsNumber("3元宝") > 0)
 			{
 				mfun.useGoods(r_bag.getGoodsIndex("3元宝"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
+		if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
 			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(一)")>0);
+				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(一)"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("声望令牌(二)") > 0)
+		if (r_bag.caclGoodsNumber("声望令牌(二)") )
 			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(二)") > 0);
+				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(二)"));
 				Sleep(200);
 			}
-			if (r_bag.caclGoodsNumber("声望令牌(三)") > 0)
+		if (r_bag.caclGoodsNumber("声望令牌(三)") > 0)
 			{
-				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(三)") > 0);
+				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(三)"));
 				Sleep(200);
+			}
+			//回收将军和书籍
+			if ((r_bag.getBagSpace() < 6) && (i_time > 27))
+			{
+				i_time = 0;
+				mfun.useSkillTo(m_skill.getSkillId("一键回收"), *r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y);//使用自动回收，技能冷却27秒
+				Sleep(500);
+				mfun.ChooseCmd("@免费将军换经验");
+				Sleep(500);
+				mfun.ChooseCmd("@回收经验&将军装备&200000");
+				Sleep(500);
+				mfun.ChooseCmd("@回收一次");
+				Sleep(500);
+				mfun.ChooseCmd("@回收一次");
+				Sleep(500);
+				mfun.ChooseCmd("@书籍换元宝");
+				Sleep(500);
+				mfun.ChooseCmd("@召唤神兽");
+				Sleep(50);
+				mfun.ChooseCmd("@召唤神兽");
+				Sleep(50);
+				mfun.ChooseCmd("@召唤神兽");
+				Sleep(50);
+				mfun.ChooseCmd("@烈火剑法");
+				Sleep(50);
+				mfun.ChooseCmd("@烈火剑法");
+				Sleep(50);
+				mfun.ChooseCmd("@烈火剑法");
+				Sleep(50);
+				mfun.ChooseCmd("@雷霆剑");
+				Sleep(50);
+				mfun.ChooseCmd("@雷霆剑");
+				Sleep(50);
+				mfun.ChooseCmd("@雷霆剑");
+				Sleep(50);
+				mfun.ChooseCmd("@风影盾");
+				Sleep(50);
+				mfun.ChooseCmd("@风影盾");
+				Sleep(50);
+				mfun.ChooseCmd("@神光术");
+				Sleep(50);
+				mfun.ChooseCmd("@神光术");
+				Sleep(50);
+				mfun.ChooseCmd("@冰旋风");
+				Sleep(50);
+				mfun.ChooseCmd("@冰旋风");
+				Sleep(50);
+				mfun.ChooseCmd("@兽灵术");
+				Sleep(50);
+				mfun.ChooseCmd("@兽灵术");
+				Sleep(50);
+				mfun.ChooseCmd("@破击剑法");
+				Sleep(50);
+				mfun.ChooseCmd("@破击剑法");
+				Sleep(50);
+				mfun.ChooseCmd("@擒龙手");
+				Sleep(50);
+				mfun.ChooseCmd("@擒龙手");
+				Sleep(50);
+				mfun.ChooseCmd("@魔魂术");
+				Sleep(50);
+				mfun.ChooseCmd("@魔魂术");
+				Sleep(50);
+				mfun.ChooseCmd("@破盾斩");
+				Sleep(50);
+				mfun.ChooseCmd("@流星火雨");
+				Sleep(50);
+				mfun.ChooseCmd("@幽冥火咒");
+				Sleep(50);
+				mfun.ChooseCmd("@狂龙紫电");
+				Sleep(50);
+				mfun.ChooseCmd("@强化骷髅术");
+				Sleep(50);
+				mfun.ChooseCmd("@心灵召唤");
+				Sleep(50);
+				mfun.ChooseCmd("@金刚护体");
+				Sleep(50);
+				mfun.ChooseCmd("@突斩");
+				Sleep(50);
+				mfun.ChooseCmd("@遁地");
+				Sleep(50);
+				mfun.ChooseCmd("@移形换影");
+				Sleep(50);
+				mfun.ChooseCmd("@化身蝙蝠");
+				Sleep(50);
 			}
 		//if (r_bag.getBagSpace() < 10)
 		//{
