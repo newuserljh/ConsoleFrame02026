@@ -3,6 +3,7 @@
 #include "role.h"
 #include<algorithm>
 #include <regex> 
+#include "bag.h"
 /*
 游戏功能CALL类
 */
@@ -45,9 +46,15 @@ public:
 	bool sellGoods(const std::string &goodsname, DWORD goodsId, DWORD npcId);
 	bool storeGoods(const std::string& goodsname, DWORD goodsId, DWORD npcId);
 
+	//2026.1.11
+	bool takeOrPutBagGoods(DWORD bag_index,DWORD bag_type=0);
+	bool AddGoodsInBag(const std::string& goodsname,bag& mbag, DWORD current_bag);
+	bool MoveGoodsInBags(const std::string& goodsname, bag& mbag_current, DWORD current_bag, bag& mbag_dest, DWORD dest_bag);
+
 private:
 	static bool comp(const MONSTER_PROPERTY& a, const MONSTER_PROPERTY& b);
 	static bool comp_groud(const GROUND_GOODS& a, const GROUND_GOODS& b);
+	bool MoveGoods_FromBag_ToOtherBag(DWORD curruent_bag, DWORD current_index, DWORD dest_bag, DWORD dest_index);
 };
 
 

@@ -17,10 +17,12 @@
 extern shareMemoryCli shareCli; 
 extern int shareindex; 
 extern role r; 
-extern role Promenade; 
+extern role ys; 
 extern m_object m_obj; 
 extern skill m_skill; 
 extern bag r_bag; 
+extern bag ys_bag;
+extern bag pet_bag;
 extern gamecall mfun; 
 extern team m_team; 
 

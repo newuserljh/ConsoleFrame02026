@@ -1,6 +1,7 @@
 #pragma once
 #include "base.h"
 #include <map>
+#include <array>
 #define MAX_BAG_SIZE 126
 /*
 ±³°üÀà
@@ -15,6 +16,10 @@ public:
 	bool init();
 	int caclGoodsNumber(std::string pName);
 	int getGoodsIndex(std::string pName);
+	int getGoodsFirstIndex(std::string pName);
+	int getGoodsNextIndex(std::string pName,int fisrt_i);
+	int getLastSpaceIndex();
+	int getFirstSpaceIndex();
 	int ifHasPoison(void);
 	int caclMpGoodsNumer();
 	int caclHpGoodsNumer();

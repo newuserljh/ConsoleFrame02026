@@ -28,9 +28,9 @@ bool role::init()
 bool role::init_promenade()
 {
 	// 初始化元神基本属性
-	if (!initialize_properties(PROMENADE_Base)) return false;
+	if (!initialize_PROMENAD_properties(PROMENADE_Base)) return false;
 	// 初始化元神装备
-	//if (!init_equip()) return false;
+	if (!init_equip((DWORD)m_roleproperty.p_ZB))return false;
 	return true;
 }
 
@@ -101,6 +101,75 @@ bool role::initialize_properties(DWORD baseAddress)
 	}
 	return true;
 }
+
+// 初始化元神属性的通用函数
+bool role::initialize_PROMENAD_properties(DWORD baseAddress)
+{
+	try
+	{
+		// 使用宏定义初始化各个属性
+		INIT_PROPERTY(baseAddress, 8, DWORD, Object.ID);
+		INIT_PROPERTY(baseAddress, 0x10, char, Object.pName);
+		INIT_PROPERTY(baseAddress, 0x80, DWORD, Object.HP);
+		INIT_PROPERTY(baseAddress, 0x84, DWORD, Object.HP_MAX);
+		INIT_PROPERTY(baseAddress, 0x88, DWORD, Object.MP);
+		INIT_PROPERTY(baseAddress, 0x8c, DWORD, Object.MP_MAX);
+		INIT_PROPERTY(baseAddress, 0xac, DWORD, Object.X);
+		INIT_PROPERTY(baseAddress, 0xb0, DWORD, Object.Y);
+		INIT_PROPERTY(baseAddress, 0x34b, BYTE, Object.IsPosion);
+		//INIT_PROPERTY(baseAddress, 0x5cc, DWORD, VIP_Level);
+		INIT_PROPERTY(baseAddress, 0xe4, DWORD, Job);
+		INIT_PROPERTY(baseAddress, 0xec, DWORD, Level);
+		INIT_PROPERTY(baseAddress, 0xdc, DWORD, Sex);
+		INIT_PROPERTY(baseAddress, 0xA5C, DWORD, GJL_L);
+		INIT_PROPERTY(baseAddress, 0xA60, DWORD, GJL_H);
+		INIT_PROPERTY(baseAddress, 0xA64, DWORD, MFL_L);
+		INIT_PROPERTY(baseAddress, 0xA68, DWORD, MFL_H);
+		INIT_PROPERTY(baseAddress, 0xA6c, DWORD, DSL_L);
+		INIT_PROPERTY(baseAddress, 0xA70, DWORD, DSL_H);
+		INIT_PROPERTY(baseAddress, 0xA7C, DWORD, FY_L);
+		INIT_PROPERTY(baseAddress, 0xA80, DWORD, FY_H);
+		INIT_PROPERTY(baseAddress, 0xA84, DWORD, MF_L);
+		INIT_PROPERTY(baseAddress, 0xA88, DWORD, MF_H);
+		INIT_PROPERTY(baseAddress, 0xAA8, WORD, BAG_W);
+		INIT_PROPERTY(baseAddress, 0xAAA, WORD, BAG_W_MAX);
+		INIT_PROPERTY(baseAddress, 0xAD0, DWORD, SW);
+		INIT_PROPERTY(baseAddress, 0xC54, DWORD, p_Bag_Base);
+		INIT_PROPERTY(baseAddress, 0xc58, DWORD, Bag_Size);
+		//INIT_PROPERTY(baseAddress, 0xc60, DWORD, p_LR_Bag_Base);
+		//INIT_PROPERTY(baseAddress, 0xc64, DWORD, LR_Bag_Size);
+		INIT_PROPERTY(baseAddress, 0x458, DWORD, p_Target_ID);
+		INIT_PROPERTY(baseAddress, 0x1358, DWORD, p_Skill_Base);
+		INIT_PROPERTY(baseAddress, 0xc48, DWORD, p_ZB);
+		//INIT_PROPERTY(baseAddress, 0x139C, DWORD, LL);
+		INIT_PROPERTY(baseAddress, 0x8299C8, char, p_Current_Map);
+		INIT_PROPERTY(baseAddress, 0xA24, DWORD, PatCount);
+		//INIT_PROPERTY(baseAddress, 0x1054550, DWORD, Team_is_allow);
+		//INIT_PROPERTY(baseAddress, 0x1054550 + 8, DWORD, Team_pointer);
+		//INIT_PROPERTY(baseAddress, 0x13A0, DWORD, Is_has_Promenade);
+		//INIT_PROPERTY(baseAddress, 0x3D8, DWORD, Is_Promenade_Release);
+		//INIT_PROPERTY(baseAddress, 0xA08, DWORD, Promenade_Mode);
+
+		INIT_PROPERTY(baseAddress, 0xA84, DWORD, p_Role_EXP);
+		INIT_PROPERTY(baseAddress, 0xAA0, DWORD, p_Role_EXP_MAX);
+		INIT_PROPERTY(baseAddress, 0xC08, double, p_Role_YB_Bind);
+		INIT_PROPERTY(baseAddress, 0xC10, DWORD, p_Role_Gold);
+		INIT_PROPERTY(baseAddress, 0xC14, DWORD, p_Role_GoldBind);
+		INIT_PROPERTY(baseAddress, 0xBEC, DWORD, p_Role_YB);
+
+		// 检查 HP_MAX 是否为 0
+		if (!*m_roleproperty.Object.HP_MAX)
+		{
+			return false;
+		}
+	}
+	catch (...)
+	{
+		return false;
+	}
+	return true;
+}
+
 
 // 初始化装备
 bool role::init_equip(DWORD p_ZB)

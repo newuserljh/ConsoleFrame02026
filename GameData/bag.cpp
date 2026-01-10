@@ -127,6 +127,83 @@ int bag::getGoodsIndex(std::string pName)
 	return firstIndex;
 }
 
+/*
+函数功能:获取物品的背包下标
+参数一:物品名字
+返回值:找到该物品的第一个下标
+*/
+int bag::getGoodsFirstIndex(std::string pName)
+{
+	int firstIndex = -1;
+	for (size_t i = 0; i < maxSize; i++)
+	{
+		if (!(*m_bag[i].ID)) continue;
+		if (strcmp(pName.c_str(), m_bag[i].pName) == 0)
+		{
+			firstIndex = i;
+			break;
+		}
+	}
+	return firstIndex;
+}
+
+/*
+函数功能:获取物品的背包下标
+参数一:物品名字
+参数二:上一个物品的下标
+返回值:找到该物品的下一个下标
+*/
+int bag::getGoodsNextIndex(std::string pName,int first_i)
+{
+	int nextIndex = -1;
+	for (size_t i = first_i+1; i < maxSize; i++)
+	{
+		if (!(*m_bag[i].ID)) continue;
+		if (strcmp(pName.c_str(), m_bag[i].pName) == 0)
+		{nextIndex = i;
+			break;
+		}
+	}
+	return nextIndex;
+}
+
+/*
+函数功能:获取背包第一个空格子下标,从前找
+返回值:背包第一个空格子下标
+*/
+int bag::getFirstSpaceIndex()
+{
+	int firstSpaceIndex = -1;
+
+	for (size_t i = 0; i < maxSize; i++)
+	{
+		if (!(*m_bag[i].ID))
+		{
+			firstSpaceIndex = i;
+			break;
+		}
+	}
+
+	return firstSpaceIndex;
+}
+
+/*
+函数功能:获取背包最后面的空格子下标,从后往前找
+返回值:背包最后面的空格子下标
+*/
+int bag::getLastSpaceIndex()
+{
+	int lastSpaceIndex = -1;
+	for (size_t i = maxSize -1; i >-1; i--)
+	{
+		if (!(*m_bag[i].ID)) 
+		{
+			lastSpaceIndex = i;
+			break;
+		}
+	}
+	return lastSpaceIndex;
+}
 
 /*
 函数功能:背包是否有毒药

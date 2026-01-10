@@ -618,17 +618,19 @@ std::string tools::GetCurrDir()
 
  /*
 函数功能： 若DLL支持自定义卸载协议，可远程调用清理函数
-参数1：dll模块进程
-参数2：dll模块句柄
+参数1：dll模块pid
+参数2：dll名字
 返回值：无
 */
- void tools::SafeCleanup(HANDLE hProcess, HMODULE hModule) {
+ void tools::SafeCleanup(DWORD pid, const wchar_t* dllName) {
+	 HMODULE hModule = FindRemoteModule(pid, dllName);
+	 HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 	 LPVOID pCleanFunc = GetProcAddress(hModule, "DllStop");
 	 if (pCleanFunc) {
 		 HANDLE hThread = CreateRemoteThread(
 			 hProcess, NULL, 0,
 			 (LPTHREAD_START_ROUTINE)pCleanFunc, NULL, 0, NULL);
-		 WaitForSingleObject(hThread, 5000); // 等待清理完成
+		 WaitForSingleObject(hThread, 15000); // 等待清理完成
 		 CloseHandle(hThread);
 	 }
  }

@@ -1031,3 +1031,88 @@ bool gamecall::storeGoods(const std::string& goodsName, DWORD goodsId, DWORD npc
 		return false;
 	}
 }
+
+/*
+函数功能:用鼠标拿起或者放下背包物品
+参数一:背包索引下标从0开始
+参数二:背包类型默认0：0（主体背包）,1(元神背包)，2(灵兽背包)
+返回值：bool
+*/
+bool gamecall::takeOrPutBagGoods(DWORD bag_type,DWORD bag_index)
+{
+	auto call_addr = -1;
+	if (bag_type == 0)call_addr = CALL_TAKE_PUT_ROLE_BAG_GOODS;
+	else if (bag_type == 1)call_addr = CALL_TAKE_PUT_YS_BAG_GOODS;
+	else if (bag_type == 2)call_addr = CALL_TAKE_PUT_PAT_BAG_GOODS;
+	else return false;
+	try
+	{
+		_asm
+		{
+			pushad
+			push bag_index
+			mov ecx, dword ptr ds : [CALL_ECX_2]
+			add ecx,0x158
+			mov edx, call_addr
+			call edx
+			popad
+		}
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
+
+/*
+函数功能:移动物品（从当前背包到目的背包）
+参数一:当前背包代码（0（主体背包）,1(元神背包)，2(灵兽背包)）
+参数二:当前物品所在背包索引下标
+参数三:目的背包代码（0（主体背包）,1(元神背包)，2(灵兽背包)）
+参数四:目的物品所在背包索引下标
+返回值：bool
+*/
+bool gamecall::MoveGoods_FromBag_ToOtherBag( DWORD curruent_bag, DWORD current_index, DWORD dest_bag, DWORD dest_index)
+{
+
+	bool rtn = takeOrPutBagGoods(curruent_bag, current_index);
+	if (!rtn)  return false;
+	Sleep(100);
+	rtn = takeOrPutBagGoods(dest_bag, dest_index);
+	if (!rtn)  return false;
+	return true;
+}
+
+/*
+函数功能:叠加背包物品
+参数一:物品名字
+参数二:背包对象
+参数三:当前背包代码（0（主体背包）,1(元神背包)，2(灵兽背包)）
+返回值：bool
+*/
+bool gamecall::AddGoodsInBag(const std::string& goodsname, bag& mbag, DWORD current_bag)
+{
+	int firstId = mbag.getGoodsFirstIndex(goodsname);
+	if (firstId == -1) return false;
+	int nextId = mbag.getGoodsNextIndex(goodsname,firstId);
+	if (nextId == -1)return false;
+	return MoveGoods_FromBag_ToOtherBag(current_bag, nextId, current_bag, firstId);
+}
+
+/*
+函数功能:在背包之间移动物品
+参数一:物品名字
+参数二:当前背包对象
+参数三:当前背包代码（0（主体背包）,1(元神背包)，2(灵兽背包)）
+参数四:目的背包对象
+参数五:目的背包代码（0（主体背包）,1(元神背包)，2(灵兽背包)）
+返回值：bool
+*/
+bool gamecall::MoveGoodsInBags(const std::string& goodsname, bag& mbag_current, DWORD current_bag, bag& mbag_dest,DWORD dest_bag)
+{
+	int currentId = mbag_current.getGoodsFirstIndex(goodsname);
+	if (currentId == -1) return false;
+	int destId = mbag_dest.getFirstSpaceIndex();
+	if (destId == -1)return false;
+	return MoveGoods_FromBag_ToOtherBag(current_bag, currentId, dest_bag, destId);
+}

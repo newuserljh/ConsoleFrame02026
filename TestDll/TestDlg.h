@@ -130,4 +130,5 @@ public:
 	afx_msg void OnBnClickedBtnChooseLuaFile();
 	CString m_EditLuaPath;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	afx_msg void OnDestroy();
 };

@@ -44,10 +44,12 @@ int shareindex = -1;
 HookReg hook;
 HookReg hook_npc_cmd;
 role r;//角色
-role Promenade; //元神
+role ys; //元神
 m_object m_obj;
 skill m_skill;
-bag r_bag;
+bag r_bag; //主体背包
+bag ys_bag;//元神背包
+bag pet_bag;//灵兽背包
 gamecall mfun;
 team m_team;
 
@@ -63,7 +65,7 @@ _declspec(naked) void CallTest()
 	if (hook.EAX != 100)
 	{
 		tools::getInstance()->message("错误!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-		shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//验证外挂存活
+	//	shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//验证外挂存活
 	}
 	_asm  popad
 	_asm ret
@@ -111,6 +113,7 @@ BEGIN_MESSAGE_MAP(CTestDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON6, &CTestDlg::OnBnClickedButton6)
 	ON_BN_CLICKED(IDC_BTN_CHOOSE_LUA_FILE, &CTestDlg::OnBnClickedBtnChooseLuaFile)
 	ON_WM_CTLCOLOR()
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 // CTestDlg 消息处理程序
@@ -177,6 +180,18 @@ void threadLogin()
 	return;
 }
 
+/*从元神背包移动物品到主体背包*/
+bool MoveGoodsFromYsToRoleBag(std::string goodsname)
+{
+	return mfun.MoveGoodsInBags(goodsname, ys_bag, 1, r_bag, 0);
+}
+
+/*叠加主体背包物品*/
+bool AddGoodsInRoleBag(std::string goodsname)
+{
+	return mfun.AddGoodsInBag(goodsname,r_bag,0);
+}
+
 
 /*判断辅助存活,判断角色是否活着，线程*/
 void threadAlive()
@@ -214,18 +229,18 @@ BOOL CTestDlg::OnInitDialog()
 	static EditStreamBuf cerrBuf(pEdit);
 	std::cerr.rdbuf(&cerrBuf); // 重定向 std::cerr
 		//初始化 线程标志
-	tflag_attack = true;
-	tflag_goto = true;
-	tflag_pickup = true;
-	tflag_autoavoid = true;
-	tflag_processBag = true;
+	tflag_attack = false;
+	tflag_goto = false;
+	tflag_pickup = false;
+	tflag_autoavoid = false;
+	tflag_processBag = false;
 
   //初始化共享内存,取得共享内存索引
 	if (!shareCli.openShareMemory())
 	{
 		tools::getInstance()->message("打开共享内存失败\n");
 	}
-	shareindex = shareCli.getIndexByPID(GetCurrentProcessId());
+	//shareindex = shareCli.getIndexByPID(GetCurrentProcessId());
 
 	//载入地图数据到内存
 	//std::string input_file = (std::string)shareCli.m_pSMAllData->currDir + "map\\map_data.lua";
@@ -521,28 +536,28 @@ void CTestDlg::OnBnClickedButton1()
 
 	// 元神属性
 	if (*r.m_roleproperty.Is_has_Promenade == 0) return;
-	Promenade.init_promenade();
-	if (*Promenade.m_roleproperty.Is_Promenade_Release == 0) mfun.release_Promenade();
-	if (!Promenade.init_promenade()) return;
-	std::cout << Promenade.m_roleproperty.Object.pName << std::endl;
-	sex = (*Promenade.m_roleproperty.Sex == 0) ? "男" : "女";
-	job = (*Promenade.m_roleproperty.Job == 0) ? "战士" :(*Promenade.m_roleproperty.Job == 1) ? "法师" : "道士";
-	std::cout << "职业:" << job << "      等级:" << *Promenade.m_roleproperty.Level << "    性别:" << sex << std::endl;
-	std::cout << "HP:" << *Promenade.m_roleproperty.Object.HP << " / " << *Promenade.m_roleproperty.Object.HP_MAX << std::endl;
-	std::cout << "MP:" << *Promenade.m_roleproperty.Object.MP << " / " << *Promenade.m_roleproperty.Object.MP_MAX << std::endl;
-	std::cout << "当前地图:" << Promenade.m_roleproperty.p_Current_Map << "  坐标" << *Promenade.m_roleproperty.Object.X << "," << *Promenade.m_roleproperty.Object.Y << std::endl;
-	std::cout << "背包大小:" << *Promenade.m_roleproperty.Bag_Size << "  背包负重" << *Promenade.m_roleproperty.BAG_W << " / " << *Promenade.m_roleproperty.BAG_W_MAX << std::endl;
-	std::cout << "ID:" << std::hex << *Promenade.m_roleproperty.Object.ID << std::dec << std::endl;
+	ys.init_promenade();
+	if (*ys.m_roleproperty.Is_Promenade_Release == 0) mfun.release_Promenade();
+	if (!ys.init_promenade()) return;
+	std::cout << ys.m_roleproperty.Object.pName << std::endl;
+	sex = (*ys.m_roleproperty.Sex == 0) ? "男" : "女";
+	job = (*ys.m_roleproperty.Job == 0) ? "战士" :(*ys.m_roleproperty.Job == 1) ? "法师" : "道士";
+	std::cout << "职业:" << job << "      等级:" << *ys.m_roleproperty.Level << "    性别:" << sex << std::endl;
+	std::cout << "HP:" << *ys.m_roleproperty.Object.HP << " / " << *ys.m_roleproperty.Object.HP_MAX << std::endl;
+	std::cout << "MP:" << *ys.m_roleproperty.Object.MP << " / " << *ys.m_roleproperty.Object.MP_MAX << std::endl;
+	std::cout << "当前地图:" << ys.m_roleproperty.p_Current_Map << "  坐标" << *ys.m_roleproperty.Object.X << "," << *ys.m_roleproperty.Object.Y << std::endl;
+	std::cout << "背包大小:" << *ys.m_roleproperty.Bag_Size << "  背包负重" << *ys.m_roleproperty.BAG_W << " / " << *ys.m_roleproperty.BAG_W_MAX << std::endl;
+	std::cout << "ID:" << std::hex << *ys.m_roleproperty.Object.ID << std::dec << std::endl;
 	// 输出元神装备信息
 	for (auto i = 0; i < 21; i++)
 	{
-		if (!(*Promenade.m_euip[i].ID)) continue;
-		std::cout << i << " :" << Promenade.m_euip[i].pName << " 耐久:" << *(Promenade.m_euip[i].Use_Num) << "/" << *(Promenade.m_euip[i].Use_Num_Max) << std::endl;
+		if (!(*ys.m_euip[i].ID)) continue;
+		std::cout << i << " :" << ys.m_euip[i].pName << " 耐久:" << *(ys.m_euip[i].Use_Num) << "/" << *(ys.m_euip[i].Use_Num_Max) << std::endl;
 	}
 
 	// 计算并输出元神与主体的距离
-	Promenade.m_roleproperty.Object.Distance = mfun.caclDistance(*r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y, *Promenade.m_roleproperty.Object.X, *Promenade.m_roleproperty.Object.Y);
-	std::cout << "距主体距离:" << Promenade.m_roleproperty.Object.Distance << std::endl;
+	ys.m_roleproperty.Object.Distance = mfun.caclDistance(*r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y, *ys.m_roleproperty.Object.X, *ys.m_roleproperty.Object.Y);
+	std::cout << "距主体距离:" << ys.m_roleproperty.Object.Distance << std::endl;
 }
 //int
 //WSAAPI
@@ -862,7 +877,7 @@ void  CTestDlg::RoleIsDeath(void)
 	std::string cfg_file_path = (std::string)shareCli.m_pSMAllData->currDir + "cfg\\";
 	cfg_file_path = cfg_file_path + r.m_roleproperty.Object.pName +".cfg";
 	tools::getInstance()->write2file(cfg_file_path, "当前任务", std::ios::out);
-
+	KillTimer(22222);
 	if (tflag_attack) //停止打怪 闪避 背包处理线程
 	{
 		tflag_attack = false;
@@ -903,7 +918,7 @@ void  CTestDlg::RoleIsDeath(void)
 
 		return;
 	}
-	shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//由控制台大退
+	//shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//由控制台大退
 }
 
 // Lua脚本线程 
@@ -1040,35 +1055,9 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 	CTestDlg* pDlg = (CTestDlg*)p;
 	std::cout << "处理包裹线程开始 " << std::endl;
 	int i_time = 0;
+	CString s;
 	while (pDlg->tflag_processBag)
 	{
-		////打开快捷回收
-		//try
-		//{
-		//	_asm
-		//	{
-		//		pushad
-		//		mov ecx, dword ptr ds : [CALL_ECX]
-		//		mov edi, 0x6EE710
-		//		call edi
-		//		popad
-		//	}
-		//}
-		//catch (...) {}
-		//Sleep(200);
-		//mfun.ChooseCmd("@一键回收");
-		//Sleep(200);
-		//if (r_bag.caclGoodsNumber("RMB兑换卷") > 0) {
-		//			mfun.useGoods(r_bag.getGoodsIndex("RMB兑换卷"));
-		//			Sleep(200);
-		//		}
-		//mfun.ChooseCmd("@回收逆魔装备");
-		//Sleep(200);
-		//mfun.ChooseCmd("@回收将军装备");
-		//Sleep(200);
-		//mfun.ChooseCmd("@回收技能书籍");
-		//Sleep(200);
-		//	pDlg->AutoRecvGoods();
 		if (i_time < 1000) //重置计时，防止计时过大溢出
 		{
 			i_time = i_time + 5;
@@ -1077,139 +1066,511 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 		{
 			i_time = 0;
 		}
-		if (r_bag.caclGoodsNumber("1积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("1积分卷"));
-			Sleep(200);
-		}
-		if (r_bag.caclGoodsNumber("2积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("2积分卷"));
-			Sleep(200);
-		}
-		if (r_bag.caclGoodsNumber("3积分卷") > 0) {
-			mfun.useGoods(r_bag.getGoodsIndex("3积分卷"));
-			Sleep(200);
-		}
-		if (r_bag.caclGoodsNumber("1元宝") > 0) {
+
+		//使用物品
+		{
+			if (r_bag.caclGoodsNumber("1积分卷") > 0) {
+				mfun.useGoods(r_bag.getGoodsIndex("1积分卷"));
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("2积分卷") > 0) {
+				mfun.useGoods(r_bag.getGoodsIndex("2积分卷"));
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("3积分卷") > 0) {
+				mfun.useGoods(r_bag.getGoodsIndex("3积分卷"));
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("1元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("1元宝"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("2元宝") > 0) {
+			if (r_bag.caclGoodsNumber("2元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("2元宝"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("5元宝") > 0) {
+			if (r_bag.caclGoodsNumber("5元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("5元宝"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("10元宝") > 0) {
+			if (r_bag.caclGoodsNumber("10元宝") > 0) {
 				mfun.useGoods(r_bag.getGoodsIndex("10元宝"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("3元宝") > 0)
+			if (r_bag.caclGoodsNumber("3元宝") > 0)
 			{
 				mfun.useGoods(r_bag.getGoodsIndex("3元宝"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
+			if (r_bag.caclGoodsNumber("声望令牌(一)") > 0)
 			{
 				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(一)"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("声望令牌(二)") )
+			if (r_bag.caclGoodsNumber("声望令牌(二)"))
 			{
 				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(二)"));
 				Sleep(200);
 			}
-		if (r_bag.caclGoodsNumber("声望令牌(三)") > 0)
+			if (r_bag.caclGoodsNumber("声望令牌(三)") > 0)
 			{
 				mfun.useGoods(r_bag.getGoodsIndex("声望令牌(三)"));
 				Sleep(200);
 			}
-			//回收将军和书籍
-			if (i_time > 27)
-			{
-				i_time = 0;
-				mfun.useSkillTo(m_skill.getSkillId("一键回收"), *r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y);//使用自动回收，技能冷却27秒
-				Sleep(500);
-				mfun.ChooseCmd("@免费将军换经验");
-				Sleep(500);
-				mfun.ChooseCmd("@回收经验&将军装备&200000");
-				Sleep(500);
-				mfun.ChooseCmd("@回收一次");
-				Sleep(500);
-				mfun.ChooseCmd("@回收一次");
-				Sleep(500);
-				mfun.ChooseCmd("@书籍换元宝");
-				Sleep(1000);
+		}
+
+		//回收将军和书籍
+		if (i_time > 27)
+		{
+			i_time = 0;
+			mfun.useSkillTo(m_skill.getSkillId("一键回收"), *r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y);//使用自动回收，技能冷却27秒
+			Sleep(500);
+			mfun.ChooseCmd("@免费将军换经验");
+			Sleep(500);
+			mfun.ChooseCmd("@回收经验&将军装备&200000");
+			Sleep(500);
+			mfun.ChooseCmd("@回收一次");
+			Sleep(500);
+			mfun.ChooseCmd("@回收一次");
+			Sleep(500);
+			mfun.ChooseCmd("@书籍换元宝");
+			Sleep(500);
+			if (r_bag.caclGoodsNumber("召唤神兽") > 0) {
 				mfun.ChooseCmd("@召唤神兽");
-				Sleep(100);
-				mfun.ChooseCmd("@召唤神兽");
-				Sleep(100);
-				mfun.ChooseCmd("@召唤神兽");
-				Sleep(100);
-				mfun.ChooseCmd("@烈火剑法");
-				Sleep(100);
-				mfun.ChooseCmd("@烈火剑法");
-				Sleep(100);
-				mfun.ChooseCmd("@烈火剑法");
-				Sleep(100);
-				mfun.ChooseCmd("@雷霆剑");
-				Sleep(100);
-				mfun.ChooseCmd("@雷霆剑");
-				Sleep(100);
-				mfun.ChooseCmd("@雷霆剑");
-				Sleep(100);
-				mfun.ChooseCmd("@风影盾");
-				Sleep(100);
-				mfun.ChooseCmd("@风影盾");
-				Sleep(50);
-				mfun.ChooseCmd("@神光术");
-				Sleep(50);
-				mfun.ChooseCmd("@神光术");
-				Sleep(50);
-				mfun.ChooseCmd("@冰旋风");
-				Sleep(50);
-				mfun.ChooseCmd("@冰旋风");
-				Sleep(50);
-				mfun.ChooseCmd("@兽灵术");
-				Sleep(50);
-				mfun.ChooseCmd("@兽灵术");
-				Sleep(50);
-				mfun.ChooseCmd("@破击剑法");
-				Sleep(50);
-				mfun.ChooseCmd("@破击剑法");
-				Sleep(50);
-				mfun.ChooseCmd("@擒龙手");
-				Sleep(50);
-				mfun.ChooseCmd("@擒龙手");
-				Sleep(50);
-				mfun.ChooseCmd("@魔魂术");
-				Sleep(50);
-				mfun.ChooseCmd("@魔魂术");
-				Sleep(50);
-				mfun.ChooseCmd("@破盾斩");
-				Sleep(50);
-				mfun.ChooseCmd("@流星火雨");
-				Sleep(50);
-				mfun.ChooseCmd("@幽冥火咒");
-				Sleep(50);
-				mfun.ChooseCmd("@狂龙紫电");
-				Sleep(50);
-				mfun.ChooseCmd("@强化骷髅术");
-				Sleep(50);
-				mfun.ChooseCmd("@心灵召唤");
-				Sleep(50);
-				mfun.ChooseCmd("@金刚护体");
-				Sleep(50);
-				mfun.ChooseCmd("@突斩");
-				Sleep(50);
-				mfun.ChooseCmd("@遁地");
-				Sleep(50);
-				mfun.ChooseCmd("@移形换影");
-				Sleep(50);
-				mfun.ChooseCmd("@化身蝙蝠");
-				Sleep(50);
+				Sleep(500);
 			}
+			if (r_bag.caclGoodsNumber("烈火剑法") > 0) {
+				mfun.ChooseCmd("@烈火剑法");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("雷霆剑") > 0) {
+				mfun.ChooseCmd("@雷霆剑");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("风影盾") > 0) {
+				mfun.ChooseCmd("@风影盾");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("神光术") > 0) {
+				mfun.ChooseCmd("@神光术");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("冰旋风") > 0) {
+				mfun.ChooseCmd("@冰旋风");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("兽灵术") > 0) {
+				mfun.ChooseCmd("@兽灵术");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("破击剑法") > 0) {
+				mfun.ChooseCmd("@破击剑法");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("擒龙手") > 0) {
+				mfun.ChooseCmd("@擒龙手");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("魔魂术") > 0) {
+				mfun.ChooseCmd("@魔魂术");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("破盾斩") > 0) {
+				mfun.ChooseCmd("@破盾斩");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("流星火雨") > 0) {
+				mfun.ChooseCmd("@流星火雨");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("幽冥火咒") > 0) {
+				mfun.ChooseCmd("@幽冥火咒");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("狂龙紫电") > 0) {
+				mfun.ChooseCmd("@狂龙紫电");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("强化骷髅术") > 0) {
+				mfun.ChooseCmd("@强化骷髅术");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("心灵召唤") > 0) {
+				mfun.ChooseCmd("@心灵召唤");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("金刚护体") > 0) {
+				mfun.ChooseCmd("@金刚护体");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("突斩") > 0) {
+				mfun.ChooseCmd("@突斩");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("移形换影") > 0) {
+				mfun.ChooseCmd("@移形换影");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("遁地") > 0) {
+				mfun.ChooseCmd("@遁地");
+				Sleep(500);
+			}
+			if (r_bag.caclGoodsNumber("化身蝙蝠") > 0) {
+				mfun.ChooseCmd("@化身蝙蝠");
+				Sleep(500);
+			}
+
+		}
+		//叠加物品
+		{
+			if (r_bag.caclGoodsNumber("盾牌铸造碎片") > 1) {
+				AddGoodsInRoleBag("盾牌铸造碎片");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("护符打造精华") > 1) {
+				AddGoodsInRoleBag("护符打造精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("魂珠锻造残页") > 1) {
+				AddGoodsInRoleBag("魂珠锻造残页");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("机关怪物精华") > 1) {
+				AddGoodsInRoleBag("机关怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("将军怪物精华") > 1) {
+				AddGoodsInRoleBag("将军怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("逆魔怪物精华") > 1) {
+				AddGoodsInRoleBag("逆魔怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("禁地怪物精华") > 1) {
+				AddGoodsInRoleBag("禁地怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("蛇谷怪物精华") > 1) {
+				AddGoodsInRoleBag("蛇谷怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("通天怪物精华") > 1) {
+				AddGoodsInRoleBag("通天怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("铁血怪物精华") > 1) {
+				AddGoodsInRoleBag("铁血怪物精华");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("天山玄铁") > 1) {
+				AddGoodsInRoleBag("天山玄铁");
+				Sleep(200);
+			}
+			if (r_bag.caclGoodsNumber("御龙结晶") > 1)AddGoodsInRoleBag("御龙结晶");
+		}
+
+		//移动指定物品从元神背包到主体背包
+		{
+			if (*r.m_roleproperty.Is_has_Promenade !=0)
+			{
+				if (*r.m_roleproperty.Is_Promenade_Release == 0)
+				{
+					mfun.release_Promenade();
+					Sleep(500);
+				}
+				ys.init_promenade();
+				ys_bag.maxSize = *ys.m_roleproperty.Bag_Size;
+				ys_bag.bagBase = (DWORD)ys.m_roleproperty.p_Bag_Base;
+				ys_bag.init();
+
+				//移动杂物
+				{
+					if (ys_bag.caclGoodsNumber("盾牌铸造碎片") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("盾牌铸造碎片");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("护符打造精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("护符打造精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("魂珠锻造残页") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("魂珠锻造残页");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("机关怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("机关怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("逆魔怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("逆魔怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("禁地怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("禁地怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("铁血怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("铁血怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("将军怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("将军怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("蛇谷怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("蛇谷怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("铁血怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("铁血怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("通天怪物精华") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("通天怪物精华");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("天山玄铁") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("天山玄铁");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("御龙结晶") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("御龙结晶");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("1积分卷") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("1积分卷");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("2积分卷") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("2积分卷");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("3积分卷") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("3积分卷");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("1元宝") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("1元宝");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("2元宝") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("2元宝");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("3元宝") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("3元宝");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("5元宝") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("5元宝");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("声望令牌(一)") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("声望令牌(一)");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("声望令牌(二)") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("声望令牌(二)");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("声望令牌(三)") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("声望令牌(三)");
+						Sleep(200);
+					}
+				}
+
+				//移动书籍
+				{
+					if (ys_bag.caclGoodsNumber("召唤神兽") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("召唤神兽");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("烈火剑法") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("烈火剑法");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("雷霆剑") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("雷霆剑");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("风影盾") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("风影盾");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("神光术") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("神光术");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("冰旋风") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("冰旋风");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("兽灵术") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("兽灵术");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("破击剑法") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("破击剑法");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("擒龙手") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("擒龙手");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("魔魂术") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("魔魂术");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("破盾斩") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("破盾斩");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("流星火雨") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("流星火雨");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("幽冥火咒") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("幽冥火咒");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("狂龙紫电") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("狂龙紫电");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("强化骷髅术") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("强化骷髅术");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("心灵召唤") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("心灵召唤");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("金刚护体") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("金刚护体");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("突斩") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("突斩");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("移形换影") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("移形换影");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("遁地") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("遁地");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("化身蝙蝠") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("化身蝙蝠");
+						Sleep(200);
+					}
+				}
+
+				//移动将军
+				{
+					if (ys_bag.caclGoodsNumber("幽冥项链") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("幽冥项链");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("生命项链") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("生命项链");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("天珠项链") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("天珠项链");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("阎罗手套") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("阎罗手套");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("龙戒") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("龙戒");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("记忆项链") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("记忆项链");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("魔魂手镯") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("魔魂手镯");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("红宝戒指") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("红宝戒指");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("心灵护腕") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("心灵护腕");
+						Sleep(200);
+					}
+					if (ys_bag.caclGoodsNumber("白金戒指") > 0)
+					{
+						MoveGoodsFromYsToRoleBag("白金戒指");
+						Sleep(200);
+					}
+				}
+
+			}
+
+		}
+
+
 		//if (r_bag.getBagSpace() < 10)
 		//{
 		//	if (r_bag.caclGoodsNumber("强效太阳神水") > REMAIN_TAIYANG)
@@ -1710,4 +2071,21 @@ HBRUSH CTestDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	//}
 
 	return hbr;
+}
+
+void CTestDlg::OnDestroy()
+{
+	if (m_threadBagProcess != NULL)
+	{
+		tflag_processBag = false;
+		WaitForSingleObject(m_threadBagProcess, 60000);
+		m_threadBagProcess = NULL;
+	}
+	KillTimer(22222);
+	KillTimer(99999);
+	if (!rec_flag)hook_npc_cmd.Unhook();
+	hook.Unhook();
+
+	CDialogEx::OnDestroy();
+	// TODO: 在此处添加消息处理程序代码
 }

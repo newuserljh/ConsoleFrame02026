@@ -223,3 +223,60 @@ call 0x00718A10
 00CF17A0 | C783 BC020000 02000000  | mov dword ptr ds:[ebx+2BC],2                                  |
 00CF17AA | C783 C0020000 00000000  | mov dword ptr ds:[ebx+2C0],0                                  |
 00CF17B4 | A1 6C9D0901             | mov eax,dword ptr ds:[1099D6C]                                | 01099D6C:L","
+
+=======鼠标 拿起/放下 本体 元神 灵兽 背包物品================
+0054A4 | 8B86 28010000       | mov eax,dword ptr ds:[esi+128]    |
+0054A4 | 83F8 31             | cmp eax,31                        | 31:'1'
+0054A4 | C646 54 00          | mov byte ptr ds:[esi+54],0        |
+0054A4 | 0F87 88000000       | ja woool.dat.54A4E7               |
+0054A4 | 0FB680 28A55400     | movzx eax,byte ptr ds:[eax+<sub_5 |
+0054A4 | FF2485 0CA55400     | jmp dword ptr ds:[eax*4+54A50C]   |
+0054A4 | 8B4C24 14           | mov ecx,dword ptr ss:[esp+14]     | ecx:NtUserPeekMessage+C
+0054A4 | 53                  | push ebx                          |
+0054A4 | 51                  | push ecx                          | ecx:NtUserPeekMessage+C
+0054A4 | 8BCE                | mov ecx,esi                       | ecx:NtUserPeekMessage+C
+0054A4 | E8 A6F3FFFF         | call <woool.dat.sub_549820>       |
+0054A4 | 5F                  | pop edi                           |
+0054A4 | 5D                  | pop ebp                           |
+0054A4 | 5B                  | pop ebx                           |
+0054A4 | B0 01               | mov al,1                          |
+0054A4 | 5E                  | pop esi                           |
+0054A4 | C2 0800             | ret 8                             |
+0054A4 | 55                  | push ebp                          | 包裹下表
+0054A4 | 8BCE                | mov ecx,esi                       | ecx包裹ID? [135fb08]+0x158
+0054A4 | E8 858EFFFF         | call woool.dat.543310             | 鼠标 拿起/放下 本体包裹物品
+0054A4 | 5F                  | pop edi                           |
+0054A4 | 5D                  | pop ebp                           |
+0054A4 | 5B                  | pop ebx                           |
+0054A4 | B0 01               | mov al,1                          |
+0054A4 | 5E                  | pop esi                           |
+0054A4 | C2 0800             | ret 8                             |
+0054A4 | 8B15 38660901       | mov edx,dword ptr ds:[1096638]    |
+0054A4 | 03D5                | add edx,ebp                       |
+0054A4 | 52                  | push edx                          |
+0054A4 | 8BCE                | mov ecx,esi                       | ecx:NtUserPeekMessage+C
+0054A4 | E8 6C8EFFFF         | call woool.dat.543310             |
+0054A4 | 5F                  | pop edi                           |
+0054A4 | 5D                  | pop ebp                           |
+0054A4 | 5B                  | pop ebx                           |
+0054A4 | B0 01               | mov al,1                          |
+0054A4 | 5E                  | pop esi                           |
+0054A4 | C2 0800             | ret 8                             |
+0054A4 | 55                  | push ebp                          | 下标
+0054A4 | 8BCE                | mov ecx,esi                       | ecx:NtUserPeekMessage+C
+0054A4 | E8 1BC6FFFF         | call <woool.dat.sub_546AD0>       | 鼠标拿起放下元神包裹
+0054A4 | 5F                  | pop edi                           |
+0054A4 | 5D                  | pop ebp                           |
+0054A4 | 5B                  | pop ebx                           |
+0054A4 | B0 01               | mov al,1                          |
+0054A4 | 5E                  | pop esi                           |
+0054A4 | C2 0800             | ret 8                             |
+0054A4 | 55                  | push ebp                          |
+0054A4 | 8BCE                | mov ecx,esi                       | ecx:NtUserPeekMessage+C
+0054A4 | E8 BAE0FFFF         | call <woool.dat.sub_548580>       | 鼠标拿起放下灵兽包裹
+0054A4 | 5F                  | pop edi                           | edi:DeleteProcThreadAttributeList
+0054A4 | 5D                  | pop ebp                           |
+0054A4 | 5B                  | pop ebx                           |
+0054A4 | B0 01               | mov al,1                          |
+0054A4 | 5E                  | pop esi                           |
+0054A4 | C2 0800             | ret 8                             |

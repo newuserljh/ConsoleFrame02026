@@ -46,7 +46,9 @@
 #define CALL_BUY_GOODS 0x0068F000 //获取买物品的物品ID
 #define CALL_SELL_GOODS 0x68EF10 //卖物品 卖完小退
 #define CALL_STORE_GOODS 0x68EE10 //存物品 存完小退
-
+#define CALL_TAKE_PUT_ROLE_BAG_GOODS 0x00543310 //鼠标 拿起/放下 本体包裹物品
+#define CALL_TAKE_PUT_YS_BAG_GOODS 0x00546AD0 //鼠标 拿起/放下 元神包裹物品
+#define CALL_TAKE_PUT_PAT_BAG_GOODS 0x00548580 //鼠标 拿起/放下 灵兽包裹物品
 
 #define P_CURRENT_NPC_DLG 0x110d9d4 //当前对话NPC ID指针 ,跟选择对话call的EDX指针一样
 /*NPC ID*/

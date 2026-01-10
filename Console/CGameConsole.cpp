@@ -56,6 +56,7 @@ bool CGameConsole::initTables()
 	m_listConsole.InsertColumn(i++, "窗口标题", LVCFMT_LEFT, 80);
 	m_listConsole.InsertColumn(i++, "进程ID", LVCFMT_LEFT, 80);
 	m_listConsole.InsertColumn(i++, "线程ID", LVCFMT_LEFT, 80);
+    m_listConsole.InsertColumn(i++, "是否注入", LVCFMT_LEFT, 40);
 
 	//插入MORE_OPEN_NUM行
 
@@ -68,77 +69,135 @@ bool CGameConsole::initTables()
 }
 struct WindowInfo {
     HWND hWnd;
+    TCHAR strTitle[256];
     DWORD dwProcessId;
     DWORD dwThreadId;
-    TCHAR strTitle[256];
-    PROCESS_INFORMATION pi;  // 完整的进程信息结构体
+    bool bTestDllLoaded;    // 是否加载TestDll.dll
+    TCHAR remoteTitle[256]; // 从远程内存读取的标题
+    PROCESS_INFORMATION pi; // 进程/线程信息
 };
+
 std::vector<WindowInfo> g_WindowList;
 
-// 获取指定进程的主线程ID和句柄
-bool GetMainThreadInfo(DWORD dwProcessId, DWORD& dwThreadId, HANDLE& hThread) {
-    HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-    if (hThreadSnap == INVALID_HANDLE_VALUE) return false;
-
-    THREADENTRY32 te32;
-    te32.dwSize = sizeof(THREADENTRY32);
-
-    if (Thread32First(hThreadSnap, &te32)) {
-        do {
-            if (te32.th32OwnerProcessID == dwProcessId) {
-                dwThreadId = te32.th32ThreadID;
-                hThread = OpenThread(THREAD_QUERY_INFORMATION | SYNCHRONIZE, FALSE, dwThreadId);
-                break; // 默认取第一个线程作为主线程
-            }
-        } while (Thread32Next(hThreadSnap, &te32));
-    }
-    CloseHandle(hThreadSnap);
-    return (hThread != NULL);
+//===================== 内存操作工具 =====================//
+template<typename T>
+bool ReadRemoteMemory(HANDLE hProcess, DWORD_PTR addr, T& output) {
+    SIZE_T bytesRead = 0;
+    return ::ReadProcessMemory(hProcess, reinterpret_cast<LPCVOID>(addr),
+        &output, sizeof(T), &bytesRead)
+        && (bytesRead == sizeof(T));
 }
 
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
-{
-    TCHAR szClassName[256] = { 0 };
-    ::GetClassName(hwnd, szClassName, 255);
+DWORD_PTR ResolvePointerChain(HANDLE hProcess, DWORD baseAddr, const std::vector<DWORD>& offsets) {
+    DWORD_PTR currentAddr = baseAddr;
+    for (size_t i = 0; i < offsets.size(); ++i) {
+        if (i != offsets.size() - 1) {
+            if (!ReadRemoteMemory(hProcess, currentAddr, currentAddr)) return 0;
+        }
+        currentAddr += offsets[i];
+    }
+    return currentAddr;
+}
 
-    if (_tcsicmp(szClassName, _T("WOLIICLIENT")) == 0) {
-        WindowInfo info;
+//===================== DLL检测 =====================//
+bool IsTestDllLoaded(DWORD processId) {
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processId);
+    if (hSnap == INVALID_HANDLE_VALUE) return false;
+
+    MODULEENTRY32 me32 = { sizeof(MODULEENTRY32) };
+    bool found = false;
+
+    if (Module32First(hSnap, &me32)) {
+        do {
+            if (_tcsicmp(me32.szModule, _T("TestDll.dll")) == 0) {
+                found = true;
+                break;
+            }
+        } while (Module32Next(hSnap, &me32));
+    }
+    CloseHandle(hSnap);
+    return found;
+}
+
+//===================== 主线程信息获取 =====================//
+bool GetMainThreadInfo(DWORD pid, DWORD& tid, HANDLE& hThread) {
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hSnap == INVALID_HANDLE_VALUE) return false;
+
+    THREADENTRY32 te32 = { sizeof(THREADENTRY32) };
+    bool found = false;
+
+    if (Thread32First(hSnap, &te32)) {
+        do {
+            if (te32.th32OwnerProcessID == pid) {
+                tid = te32.th32ThreadID;
+                hThread = OpenThread(THREAD_QUERY_INFORMATION | SYNCHRONIZE, FALSE, tid);
+                found = true;
+                break;
+            }
+        } while (Thread32Next(hSnap, &te32));
+    }
+    CloseHandle(hSnap);
+    return found && (hThread != NULL);
+}
+
+//===================== 窗口枚举回调 =====================//
+BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    TCHAR className[256] = { 0 };
+    GetClassName(hwnd, className, 255);
+
+    if (_tcsicmp(className, _T("WOLIICLIENT")) == 0) {
+        WindowInfo info = { 0 };
         info.hWnd = hwnd;
 
-        // 获取窗口标题
-        ::GetWindowText(hwnd, info.strTitle, 255);
+        // 基础信息获取
+        GetWindowText(hwnd, info.strTitle, 255);
+        GetWindowThreadProcessId(hwnd, &info.dwProcessId);
 
-        // 获取进程ID和线程ID
-        info.dwThreadId = ::GetWindowThreadProcessId(hwnd, &info.dwProcessId);
-
-
-        // 填充PROCESS_INFORMATION结构体
-        info.pi.dwProcessId = info.dwProcessId;
-        info.pi.dwThreadId = info.dwThreadId;
-
-        // 打开进程句柄（需管理员权限获取完整权限）
-        info.pi.hProcess = OpenProcess(
-            PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE,
-            FALSE,
-            info.dwProcessId
+        // 打开进程句柄（需管理员权限）
+        HANDLE hProcess = OpenProcess(
+            PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_VM_OPERATION,
+            FALSE, info.dwProcessId
         );
 
-        // 获取并填充线程句柄
-        if (!GetMainThreadInfo(info.dwProcessId, info.pi.dwThreadId, info.pi.hThread)) {
-            info.pi.dwThreadId = 0; // 标记获取失败
-            info.pi.hThread = NULL;
+        // 远程内存读取标题
+        if (hProcess) {
+            // 多级指针解析 [[0x135DB30]+0x457]+0x20
+            const DWORD baseAddr = 0x135fb30;
+            const std::vector<DWORD> offsets = {0x10};
+            DWORD_PTR strAddr = ResolvePointerChain(hProcess, baseAddr, offsets);
+
+            if (strAddr != 0) {
+                SIZE_T bytesRead = 0;
+                ReadProcessMemory(hProcess, reinterpret_cast<LPCVOID>(strAddr),
+                    info.remoteTitle, sizeof(info.remoteTitle), &bytesRead);
+            }
+
+            // 修改窗口标题（使用远程读取的标题）
+            if (info.remoteTitle[0] != _T('\0')) {
+                SetWindowText(hwnd, info.remoteTitle);
+            }
+
+            // 检测DLL加载
+            info.bTestDllLoaded = IsTestDllLoaded(info.dwProcessId);
+            CloseHandle(hProcess);
         }
+
+        // 获取线程信息
+        GetMainThreadInfo(info.dwProcessId, info.pi.dwThreadId, info.pi.hThread);
+        info.pi.hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, info.dwProcessId);
 
         g_WindowList.push_back(info);
     }
     return TRUE;
 }
 
-void FindTargetWindows()
-{
+//===================== 主函数 =====================//
+void FindTargetWindows() {
     g_WindowList.clear();
-    ::EnumWindows(EnumWindowsProc, 0);
+    EnumWindows(EnumWindowsProc, 0);
 }
+
 
 void CGameConsole::updateDate()
 {
@@ -158,10 +217,16 @@ void CGameConsole::updateDate()
         CString strThreadId;
         strThreadId.Format(_T("%d"), info.pi.dwThreadId);
 
+        // 新增：显示DLL注入？
+        CString IsDllInject;
+        if(info.bTestDllLoaded) IsDllInject.Format("是");
+        else IsDllInject.Format("否");
+
         int nIndex = m_listConsole.InsertItem(i, strHandle);
-        m_listConsole.SetItemText(nIndex, 1, info.strTitle);
+        m_listConsole.SetItemText(nIndex, 1, info.remoteTitle);
         m_listConsole.SetItemText(nIndex, 2, strProcessId);
         m_listConsole.SetItemText(nIndex, 3, strThreadId);
+        m_listConsole.SetItemText(nIndex, 4, IsDllInject);
     }
 }
 
@@ -243,7 +308,8 @@ void CGameConsole::OnUnIstallDll()
        // CString s;
         //PROCESS_INFORMATION pi = g_WindowList[nItem].pi;
       //  s.Format("%d,%d,%d,%d,%d",pi.dwProcessId,pi.dwThreadId,pi.hProcess,pi.hThread,pi.hProcess);
-        //AfxMessageBox(s);
+        //AfxMessageBox(s
+        //tools::getInstance()->SafeCleanup(g_WindowList[nItem].dwProcessId, L"TestDll.dll");
         tools::getInstance()->ForceUnloadDLL(g_WindowList[nItem].dwProcessId, L"TestDll.dll");
     }
 }
