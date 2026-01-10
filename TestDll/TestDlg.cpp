@@ -63,7 +63,7 @@ _declspec(naked) void CallTest()
 	if (hook.EAX != 100)
 	{
 		tools::getInstance()->message("错误!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-		shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//验证外挂存活
+	//	shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//验证外挂存活
 	}
 	_asm  popad
 	_asm ret
@@ -111,6 +111,7 @@ BEGIN_MESSAGE_MAP(CTestDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON6, &CTestDlg::OnBnClickedButton6)
 	ON_BN_CLICKED(IDC_BTN_CHOOSE_LUA_FILE, &CTestDlg::OnBnClickedBtnChooseLuaFile)
 	ON_WM_CTLCOLOR()
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 // CTestDlg 消息处理程序
@@ -214,18 +215,18 @@ BOOL CTestDlg::OnInitDialog()
 	static EditStreamBuf cerrBuf(pEdit);
 	std::cerr.rdbuf(&cerrBuf); // 重定向 std::cerr
 		//初始化 线程标志
-	tflag_attack = true;
-	tflag_goto = true;
-	tflag_pickup = true;
-	tflag_autoavoid = true;
-	tflag_processBag = true;
+	tflag_attack = false;
+	tflag_goto = false;
+	tflag_pickup = false;
+	tflag_autoavoid = false;
+	tflag_processBag = false;
 
   //初始化共享内存,取得共享内存索引
 	if (!shareCli.openShareMemory())
 	{
 		tools::getInstance()->message("打开共享内存失败\n");
 	}
-	shareindex = shareCli.getIndexByPID(GetCurrentProcessId());
+	//shareindex = shareCli.getIndexByPID(GetCurrentProcessId());
 
 	//载入地图数据到内存
 	//std::string input_file = (std::string)shareCli.m_pSMAllData->currDir + "map\\map_data.lua";
@@ -862,7 +863,7 @@ void  CTestDlg::RoleIsDeath(void)
 	std::string cfg_file_path = (std::string)shareCli.m_pSMAllData->currDir + "cfg\\";
 	cfg_file_path = cfg_file_path + r.m_roleproperty.Object.pName +".cfg";
 	tools::getInstance()->write2file(cfg_file_path, "当前任务", std::ios::out);
-
+	KillTimer(22222);
 	if (tflag_attack) //停止打怪 闪避 背包处理线程
 	{
 		tflag_attack = false;
@@ -903,7 +904,7 @@ void  CTestDlg::RoleIsDeath(void)
 
 		return;
 	}
-	shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//由控制台大退
+	//shareCli.m_pSMAllData->m_sm_data[shareindex].server_alive = false;//由控制台大退
 }
 
 // Lua脚本线程 
@@ -1710,4 +1711,21 @@ HBRUSH CTestDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	//}
 
 	return hbr;
+}
+
+void CTestDlg::OnDestroy()
+{
+	if (m_threadBagProcess != NULL)
+	{
+		tflag_processBag = false;
+		WaitForSingleObject(m_threadBagProcess, 60000);
+		m_threadBagProcess = NULL;
+	}
+	KillTimer(22222);
+	KillTimer(99999);
+	if (!rec_flag)hook_npc_cmd.Unhook();
+	hook.Unhook();
+
+	CDialogEx::OnDestroy();
+	// TODO: 在此处添加消息处理程序代码
 }

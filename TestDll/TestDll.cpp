@@ -85,12 +85,12 @@ BOOL CTestDllApp::InitInstance()
 
 	return init();
 }
-
+HANDLE dllThread = NULL;
 bool CTestDllApp::init()
 {
 	//自定义初始化函数
 	//这种注入方式，线程会随着this dll卸载退出线程！
-	::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadFunc), NULL, NULL, NULL);
+	dllThread =::CreateThread(NULL, NULL, LPTHREAD_START_ROUTINE(threadFunc), NULL, NULL, NULL);
 	return true;
 }
 
@@ -251,11 +251,19 @@ void threadFunc()
 	return;
 }
 
+void CTestDllApp::DllStop()
+{
+	ExitInstance();
+}
 
 int CTestDllApp::ExitInstance()
 {
 	// TODO: 在此添加专用代码和/或调用基类
 	  // 释放控制台
 	//FreeConsole();
+	pDlg->OnDestroy();
+	if(dllThread)TerminateThread(dllThread, 0);
+	CloseHandle(dllThread);
+	//delete pDlg;
 	return CWinApp::ExitInstance();
 }

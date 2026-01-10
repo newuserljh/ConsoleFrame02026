@@ -243,7 +243,8 @@ void CGameConsole::OnUnIstallDll()
        // CString s;
         //PROCESS_INFORMATION pi = g_WindowList[nItem].pi;
       //  s.Format("%d,%d,%d,%d,%d",pi.dwProcessId,pi.dwThreadId,pi.hProcess,pi.hThread,pi.hProcess);
-        //AfxMessageBox(s);
+        //AfxMessageBox(s
+        //tools::getInstance()->SafeCleanup(g_WindowList[nItem].dwProcessId, L"TestDll.dll");
         tools::getInstance()->ForceUnloadDLL(g_WindowList[nItem].dwProcessId, L"TestDll.dll");
     }
 }
