@@ -1126,7 +1126,7 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 				Sleep(200);
 			}
 			//回收将军和书籍
-			if ((r_bag.getBagSpace() < 6) && (i_time > 27))
+			if (i_time > 27)
 			{
 				i_time = 0;
 				mfun.useSkillTo(m_skill.getSkillId("一键回收"), *r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y);//使用自动回收，技能冷却27秒
@@ -1140,27 +1140,27 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 				mfun.ChooseCmd("@回收一次");
 				Sleep(500);
 				mfun.ChooseCmd("@书籍换元宝");
-				Sleep(500);
+				Sleep(1000);
 				mfun.ChooseCmd("@召唤神兽");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@召唤神兽");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@召唤神兽");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@烈火剑法");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@烈火剑法");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@烈火剑法");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@雷霆剑");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@雷霆剑");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@雷霆剑");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@风影盾");
-				Sleep(50);
+				Sleep(100);
 				mfun.ChooseCmd("@风影盾");
 				Sleep(50);
 				mfun.ChooseCmd("@神光术");
