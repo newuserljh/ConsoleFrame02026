@@ -251,11 +251,6 @@ void threadFunc()
 	return;
 }
 
-void CTestDllApp::DllStop()
-{
-	ExitInstance();
-}
-
 
 int CTestDllApp::ExitInstance()
 {

@@ -81,22 +81,23 @@ std::vector<WindowInfo> g_WindowList;
 
 //===================== 内存操作工具 =====================//
 template<typename T>
-bool ReadRemoteMemory(HANDLE hProcess, DWORD_PTR addr, T& output) {
-    SIZE_T bytesRead = 0;
-    return ::ReadProcessMemory(hProcess, reinterpret_cast<LPCVOID>(addr),
-        &output, sizeof(T), &bytesRead)
-        && (bytesRead == sizeof(T));
-}
-
-DWORD_PTR ResolvePointerChain(HANDLE hProcess, DWORD baseAddr, const std::vector<DWORD>& offsets) {
-    DWORD_PTR currentAddr = baseAddr;
-    for (size_t i = 0; i < offsets.size(); ++i) {
-        if (i != offsets.size() - 1) {
-            if (!ReadRemoteMemory(hProcess, currentAddr, currentAddr)) return 0;
-        }
-        currentAddr += offsets[i];
+bool ReadRemoteValue(HANDLE hProcess, DWORD baseAddr, DWORD offset, T& output) {
+    DWORD_PTR finalAddr = baseAddr;
+    if (!ReadProcessMemory(hProcess,
+        reinterpret_cast<LPCVOID>(finalAddr),
+        &finalAddr,
+        sizeof(DWORD_PTR),
+        nullptr)) {
+        TRACE("读取基址0x%X失败\n", baseAddr);
+        return false;
     }
-    return currentAddr;
+
+    finalAddr += offset;
+    return ReadProcessMemory(hProcess,
+        reinterpret_cast<LPCVOID>(finalAddr),
+        &output,
+        sizeof(T),
+        nullptr);
 }
 
 //===================== DLL检测 =====================//
@@ -162,17 +163,13 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
 
         // 远程内存读取标题
         if (hProcess) {
-            // 多级指针解析 [[0x135DB30]+0x457]+0x20
+            // 多级指针解析 [0x135DB30]+0x10
             const DWORD baseAddr = 0x135fb30;
-            const std::vector<DWORD> offsets = {0x10};
-            DWORD_PTR strAddr = ResolvePointerChain(hProcess, baseAddr, offsets);
-
-            if (strAddr != 0) {
-                SIZE_T bytesRead = 0;
-                ReadProcessMemory(hProcess, reinterpret_cast<LPCVOID>(strAddr),
-                    info.remoteTitle, sizeof(info.remoteTitle), &bytesRead);
-            }
-
+            const DWORD OFFSET = 0x10;
+            char* rst = NULL;
+            ReadRemoteValue(hProcess, baseAddr, OFFSET, info.remoteTitle);
+            CString s;
+     
             // 修改窗口标题（使用远程读取的标题）
             if (info.remoteTitle[0] != _T('\0')) {
                 SetWindowText(hwnd, info.remoteTitle);
