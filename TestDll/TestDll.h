@@ -29,6 +29,5 @@ private:
 	bool init();
 public:
 	virtual int ExitInstance();
-	void DllStop();
 };
 void threadFunc();
