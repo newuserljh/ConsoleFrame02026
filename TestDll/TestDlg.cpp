@@ -1570,6 +1570,19 @@ UINT __cdecl CTestDlg::threadBagPocess(LPVOID p)
 
 		}
 
+		//防止远程超过攻击范围
+		if (*r.m_roleproperty.Job == 1) //判断法师
+		{
+			auto pTarget = mfun.getTargetP(r);
+			if (nullptr != pTarget)
+			{
+				auto t_mon = MONSTER_PROPERTY(pTarget);
+				if (mfun.caclDistance(*r.m_roleproperty.Object.X, *r.m_roleproperty.Object.Y, *t_mon.X, *t_mon.Y) > 8)
+				{
+					mfun.Run_or_Step_To(*t_mon.X, *t_mon.Y, 2);//向怪物移动
+				}
+			}
+		}
 
 		//if (r_bag.getBagSpace() < 10)
 		//{
