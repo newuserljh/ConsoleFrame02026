@@ -7,6 +7,9 @@ end
 
 -- 回城
 local function goHome()
+    if luaStopFlag then 
+     return
+    end
     printSeparator()
     print("回城整理背包...")
     game:使用物品("永久回城神石")

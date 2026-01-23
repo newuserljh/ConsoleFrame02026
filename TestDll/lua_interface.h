@@ -136,6 +136,7 @@ public:
 	bool chooseNpcCommand(const std::string& command) { return mfun.ChooseCmd(command.c_str()); }//选择NPC对话
 	void startAttack();//开始战斗
 	void endAttack(); //结束战斗
+	bool  openOrCloseYS() { return mfun.release_Promenade(); }//释放/关闭元神
 
 private:
 	//买卖存仓辅助函数

@@ -36,6 +36,7 @@ BEGIN_MESSAGE_MAP(CGameConsole, CDialogEx)
     ON_COMMAND(ID_INJECT, OnInjectDll)
     ON_COMMAND(ID_UNINSTALL, OnUnIstallDll)
     ON_WM_DESTROY()
+    ON_BN_CLICKED(IDOK, &CGameConsole::OnBnClickedOk)
 END_MESSAGE_MAP()
 
 
@@ -234,24 +235,24 @@ BOOL CGameConsole::OnInitDialog()
 	// TODO:  在此添加额外的初始化
 	if (!initTables())
 		return FALSE;
-    stopThread.store(false);  // 重置停止标志
-    auto tthread = std::thread(&CGameConsole::threadCallBack, this);
-    tthread.detach(); //分离线程 后台运行 不会阻塞主线程
+    //stopThread.store(false);  // 重置停止标志
+   // auto tthread = std::thread(&CGameConsole::threadCallBack, this);
+   // tthread.detach(); //分离线程 后台运行 不会阻塞主线程
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
 }
 
 
-void CGameConsole::threadCallBack()
-{
-    //刷新的线程回调函数
-    while (!stopThread.load())// 如果收到停止信号，则提前退出循环
-    {
-        updateDate();
-        //TRACE("111\n");
-        Sleep(20000);
-    }
-}
+//void CGameConsole::threadCallBack()
+//{
+//    //刷新的线程回调函数
+//    while (!stopThread.load())// 如果收到停止信号，则提前退出循环
+//    {
+//        updateDate();
+//        //TRACE("111\n");
+//        Sleep(20000);
+//    }
+//}
 void CGameConsole::OnNMRClickListconsole(NMHDR* pNMHDR, LRESULT* pResult)
 {
     LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
@@ -313,8 +314,14 @@ void CGameConsole::OnUnIstallDll()
 
 void CGameConsole::OnDestroy()
 {
-    stopThread.store(true);  // 设置刷新停止标志
+    //stopThread.store(true);  // 设置刷新停止标志
     CDialogEx::OnDestroy();
 
     // TODO: 在此处添加消息处理程序代码
+}
+
+void CGameConsole::OnBnClickedOk()
+{
+    // TODO: 在此添加控件通知处理程序代码
+    updateDate();
 }

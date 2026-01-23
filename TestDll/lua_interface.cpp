@@ -107,6 +107,7 @@ void lua_interface::registerClasses(lua_State* L)
 		.addFunction("选择命令", &lua_interface::chooseNpcCommand)
 		.addFunction("开始战斗", &lua_interface::startAttack)
 		.addFunction("结束战斗", &lua_interface::endAttack)
+		.addFunction("释放元神", &lua_interface::openOrCloseYS)
 		.endClass();
 
 }

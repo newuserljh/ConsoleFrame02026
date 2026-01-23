@@ -20,10 +20,10 @@ public:
 #endif
 
 private:
-	std::atomic<bool> stopThread{ false };  // 用于通知线程停止
-	void threadCallBack();//刷新ListCtrl
-	CWinThread* m_pThread_login = nullptr; // 保存线程指针
-	static UINT __cdecl ThreadLogin(LPVOID pParam);
+	//std::atomic<bool> stopThread{ false };  // 用于通知线程停止
+	//void threadCallBack();//刷新ListCtrl
+	//CWinThread* m_pThread_login = nullptr; // 保存线程指针
+	//static UINT __cdecl ThreadLogin(LPVOID pParam);
 	void updateDate();
 	std::shared_ptr<shareMemorySer>m_shareMemSer;
 public:
@@ -43,6 +43,7 @@ public:
 	afx_msg void OnInjectDll();
 	afx_msg void OnUnIstallDll();
 	afx_msg void OnDestroy();
+	afx_msg void OnBnClickedOk();
 };
 
 
